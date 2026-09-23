@@ -1,0 +1,1269 @@
+VECTOR - MAPA DEL PROYECTO
+==========================
+
+Este archivo es la guía general del proyecto VECTOR.
+Debe mantenerse dentro del repositorio y actualizarse cuando cambien
+la arquitectura, el formato .imgmap, el funcionamiento del lector o
+los objetivos principales del programa.
+
+IMPORTANTE
+----------
+Este documento distingue entre:
+
+1. ESTADO ACTUAL DEL REPOSITORIO:
+   Lo que realmente existe y funciona en el código actualmente publicado.
+
+2. OBJETIVO / FUNCIONAMIENTO PREVISTO:
+   Lo que se decidió que VECTOR debe llegar a hacer.
+
+Si hay una diferencia entre ambos, no se debe asumir que una función
+prevista ya está implementada.
+
+======================================================================
+1. QUÉ ES VECTOR
+======================================================================
+
+VECTOR es un programa para Windows destinado a crear y leer archivos
+de mapas de imágenes con extensión:
+
+    .imgmap
+
+Un archivo .imgmap representa un conjunto organizado de imágenes.
+
+La idea principal es que un .imgmap tenga:
+
+- una portada raíz;
+- varias ramas;
+- una portada propia para cada rama;
+- varias imágenes dentro de cada rama;
+- un manifest interno que describe la estructura del archivo.
+
+El lector de VECTOR debe mostrar este contenido de forma rápida,
+continua y cómoda, especialmente para mapas/documentos formados por
+muchas imágenes.
+
+El proyecto comenzó con un lector basado en tkinter + Pillow
+(reader.py), pero el desarrollo actual está migrando el lector a una
+interfaz HTML/CSS/JavaScript mostrada dentro de una ventana nativa
+mediante pywebview (reader_web.py).
+
+======================================================================
+2. ESTADO REAL DEL REPOSITORIO REVISADO
+======================================================================
+
+En el estado actual del repositorio principal existen estos archivos:
+
+    app.js
+    index.html
+    mapformat.py
+    packer_gui.py
+    reader.py
+    reader_web.py
+    requirements.txt
+
+El repositorio actualmente tiene una rama "main" y un único commit
+visible en GitHub en el momento de crear este documento.
+
+IMPORTANTE SOBRE LA ESTRUCTURA WEB ACTUAL
+-----------------------------------------
+
+reader_web.py actualmente busca los archivos de interfaz dentro de:
+
+    web/
+
+concretamente:
+
+    web/index.html
+    web/app.js
+    web/app.css
+
+Sin embargo, el repositorio actual revisado muestra:
+
+    index.html
+    app.js
+
+en la raíz y no muestra todavía una carpeta "web/" ni "app.css".
+
+Por lo tanto, existe una diferencia entre la estructura que espera
+reader_web.py y la estructura que actualmente aparece publicada.
+
+Esta diferencia debe tenerse presente antes de hacer cambios.
+No se debe asumir que la interfaz ya está organizada dentro de web/.
+
+======================================================================
+3. MAPA DE ARCHIVOS
+======================================================================
+
+3.1 mapformat.py
+----------------
+
+Es la parte central del formato .imgmap.
+
+No depende de librerías externas; utiliza la biblioteca estándar de
+Python.
+
+Define:
+
+    MANIFEST_NAME = "manifest.json"
+    FORMAT_VERSION = 1
+    EXTENSION = ".imgmap"
+
+Formatos de imagen aceptados:
+
+    .jpg
+    .jpeg
+    .png
+    .webp
+
+Funciones principales:
+
+    _find_cover(...)
+        Busca una imagen cuyo nombre base sea "portada".
+
+    _extract_number(...)
+        Extrae el ÚLTIMO número presente en el nombre de archivo.
+
+    _list_branch_images(...)
+        Obtiene las imágenes de una rama y las ordena por el número
+        encontrado en su nombre.
+
+    build_from_folder(...)
+        Construye un archivo .imgmap desde una carpeta.
+
+    read_manifest(...)
+        Lee manifest.json desde el .imgmap.
+
+    read_entry(...)
+        Lee una entrada concreta del archivo .imgmap.
+
+    total_image_count(...)
+        Cuenta las imágenes de todas las ramas.
+
+REGLA DE ORDEN DE IMÁGENES
+--------------------------
+
+El orden de las imágenes de una rama se obtiene buscando el último
+número del nombre.
+
+Ejemplos:
+
+    1.jpg
+    pagina_07.png
+    49 (12).jpg
+
+El número utilizado para ordenar respectivamente sería:
+
+    1
+    7
+    12
+
+Si una imagen no contiene ningún número, el creador actualmente
+produce un error.
+
+======================================================================
+4. ESTRUCTURA DE UN .IMGMAP
+======================================================================
+
+El .imgmap actualmente es un archivo ZIP.
+
+En su interior se guarda aproximadamente:
+
+    portada.jpg
+    1/portada.jpg
+    1/1.jpg
+    1/2.jpg
+    1/3.jpg
+    2/portada.jpg
+    2/1.jpg
+    2/2.jpg
+    ...
+    manifest.json
+
+La portada raíz se almacena en la raíz del ZIP.
+
+Cada rama utiliza una carpeta cuyo nombre corresponde a su número.
+
+Por ejemplo:
+
+    1/
+    2/
+    3/
+
+Cada rama contiene:
+
+    portada.*
+    imágenes de la rama
+
+El manifest contiene información como:
+
+    format_version
+    title
+    cover
+    branches
+
+Cada branch contiene:
+
+    id
+    name
+    cover
+    images
+
+======================================================================
+5. CREACIÓN ACTUAL DE UN .IMGMAP
+======================================================================
+
+packer_gui.py es el creador gráfico actual.
+
+Flujo actual:
+
+1. El usuario ejecuta packer_gui.py.
+2. Selecciona una carpeta raíz.
+3. La carpeta debe contener una portada.
+4. Debe contener carpetas de ramas numeradas.
+5. Puede introducir un título.
+6. Selecciona dónde guardar el .imgmap.
+7. mapformat.build_from_folder() genera el archivo.
+
+Estructura esperada de la carpeta de origen:
+
+    carpeta_raiz/
+        portada.jpg
+        1/
+            portada.jpg
+            1.jpg
+            2.jpg
+            3.jpg
+        2/
+            portada.jpg
+            1.jpg
+            2.jpg
+        3/
+            portada.png
+            1.jpg
+            2.jpg
+
+Las ramas deben tener nombres numéricos.
+
+Ejemplo válido:
+
+    1
+    2
+    3
+    10
+
+El creador las ordena numéricamente, no alfabéticamente.
+
+======================================================================
+6. LECTOR ANTIGUO: reader.py
+======================================================================
+
+reader.py es el lector original basado en:
+
+    tkinter
+    Pillow
+
+Actualmente sirve como referencia funcional y también como versión
+anterior del lector.
+
+Características que ya contiene:
+
+- abrir un .imgmap;
+- leer el manifest;
+- mostrar ramas;
+- mostrar portada de cada rama;
+- mostrar imágenes de una rama verticalmente;
+- zoom;
+- scroll;
+- teclas Esc;
+- teclas izquierda/derecha;
+- precarga de imágenes en un hilo;
+- render progresivo para evitar congelar la interfaz.
+
+El zoom del lector antiguo utiliza:
+
+    mínimo: 10%
+    máximo: 150%
+    paso: 5%
+
+La versión antigua comienza en:
+
+    50%
+
+Pero el diseño nuevo de VECTOR utiliza como valor previsto:
+
+    40%
+
+reader.py NO es la arquitectura final deseada.
+
+======================================================================
+7. LECTOR NUEVO: reader_web.py
+======================================================================
+
+reader_web.py es la arquitectura actualmente en desarrollo.
+
+Utiliza:
+
+    Python
+        +
+    pywebview
+        +
+    servidor HTTP local
+        +
+    HTML/CSS/JavaScript
+
+Python no debe encargarse de dibujar las imágenes.
+Su función es actuar principalmente como backend local:
+
+- abrir .imgmap;
+- leer manifest.json;
+- leer imágenes del ZIP;
+- servir archivos al frontend;
+- comunicarse con JavaScript mediante pywebview.
+
+JavaScript se encarga del renderizado y de la interfaz.
+
+Actualmente reader_web.py:
+
+- crea un servidor local en 127.0.0.1;
+- encuentra un puerto disponible;
+- sirve el HTML/JS/CSS;
+- sirve /manifest;
+- sirve /img/...;
+- mantiene abierto el .imgmap actual;
+- expone choose_and_open() a JavaScript;
+- permite abrir un archivo recibido como argumento de línea de comandos.
+
+Uso previsto/actual:
+
+    py reader_web.py
+
+o:
+
+    py reader_web.py "archivo.imgmap"
+
+DEPENDENCIAS
+------------
+
+requirements.txt actualmente contiene:
+
+    pywebview>=4.4
+    pythonnet>=3.0 ; sys_platform == 'win32'
+
+Por lo tanto, para ejecutar reader_web.py correctamente hay que
+instalar:
+
+    python -m pip install -r requirements.txt
+
+En Windows, pythonnet se utiliza para el backend EdgeChromium de
+pywebview.
+
+======================================================================
+8. INTERFAZ WEB ACTUAL
+======================================================================
+
+index.html define tres niveles/vistas principales:
+
+    HOME
+    ROOT
+    BRANCH
+
+HOME
+----
+
+Es la pantalla inicial de VECTOR.
+
+Actualmente contiene:
+
+    CONTINUAR
+    CREAR
+    BIBLIOTECA
+
+CONTINUAR:
+    Debe abrir el último .imgmap utilizado.
+
+CREAR:
+    Debe iniciar el creador de un nuevo .imgmap.
+
+BIBLIOTECA:
+    Debe mostrar una carpeta seleccionada por el usuario y sus
+    archivos .imgmap.
+
+ROOT
+----
+
+Es el índice del .imgmap abierto.
+
+Debe mostrar:
+
+    título del mapa
+    tarjetas de las ramas
+
+Cada tarjeta de rama contiene:
+
+    portada de la rama
+    nombre de la rama
+
+IMPORTANTE:
+
+La portada raíz EXISTE dentro del .imgmap, pero NO debe mostrarse
+en la pantalla ROOT.
+
+BRANCH
+------
+
+Es el lector de una rama.
+
+Debe mostrar las imágenes de la rama como una tira vertical continua.
+
+No debe haber separación visual entre imágenes.
+
+======================================================================
+9. FUNCIONAMIENTO DESEADO DEL LECTOR
+======================================================================
+
+NAVEGACIÓN GENERAL
+------------------
+
+Al abrir un .imgmap:
+
+    HOME
+      |
+      v
+    ROOT
+      |
+      v
+    BRANCH
+
+Al hacer clic sobre una rama:
+
+    ROOT -> BRANCH
+
+Al presionar ESC dentro de una rama:
+
+    BRANCH -> ROOT
+
+Al presionar ESC estando en ROOT:
+
+    ROOT -> HOME
+
+NAVEGACIÓN ENTRE RAMAS
+----------------------
+
+Dentro de una rama:
+
+    Flecha izquierda
+        -> rama anterior
+
+    Flecha derecha
+        -> rama siguiente
+
+Si no existe una rama anterior/siguiente:
+
+    no hacer nada.
+
+El cambio de rama no debe cerrar el .imgmap.
+
+SCROLL
+------
+
+Dentro de una rama:
+
+    rueda del mouse -> scroll vertical
+    flecha arriba    -> subir
+    flecha abajo     -> bajar
+
+Las imágenes deben aparecer una debajo de otra.
+
+La intención visual es una tira continua, similar a un rollo largo
+de papel.
+
+No se deben colocar márgenes entre las imágenes.
+
+======================================================================
+10. REGLA FUNDAMENTAL PARA LAS IMÁGENES
+======================================================================
+
+Las imágenes NO deben deformarse.
+
+Cada imagen mantiene siempre su relación de aspecto original.
+
+El ancho de la imagen se determina mediante un porcentaje del ancho
+de la pantalla/viewport.
+
+La altura se calcula automáticamente a partir de la relación de
+aspecto.
+
+Ejemplo conceptual:
+
+    ancho = 40% del viewport
+
+Si una imagen tiene relación:
+
+    2:1
+
+su altura será aproximadamente la mitad de su ancho.
+
+Si otra imagen tiene relación:
+
+    1:2
+
+su altura será aproximadamente el doble de su ancho.
+
+Nunca se debe forzar simultáneamente un ancho y una altura arbitraria.
+
+======================================================================
+11. ZOOM
+======================================================================
+
+El zoom de VECTOR es GLOBAL.
+
+No pertenece a una rama.
+
+No pertenece a un archivo.
+
+Ejemplo:
+
+    rama 1 -> 40%
+    rama 2 -> 40%
+    rama 3 -> 40%
+
+Si el usuario cambia:
+
+    40 -> 45%
+
+entonces todas las ramas deben utilizar:
+
+    45%
+
+Valores previstos:
+
+    mínimo = 10%
+    máximo = 150%
+    paso = 5%
+    valor inicial = 40%
+
+Por lo tanto:
+
+    40
+    45
+    50
+    55
+    ...
+
+El zoom modifica el ancho de las imágenes, manteniendo su relación de
+aspecto.
+
+======================================================================
+12. app.js
+======================================================================
+
+app.js es el controlador principal de la interfaz web.
+
+Actualmente ya contiene lógica para:
+
+- estado global;
+- zoom global;
+- HOME;
+- ROOT;
+- BRANCH;
+- manifest;
+- tarjetas de ramas;
+- abrir ramas;
+- volver al índice;
+- cambiar de rama;
+- abrir un .imgmap;
+- CONTINUAR;
+- CREAR;
+- BIBLIOTECA;
+- seleccionar carpeta de biblioteca;
+- abrir un archivo desde biblioteca;
+- consultar último archivo;
+- controles de zoom.
+
+El frontend ya está preparado para algunas funciones de backend que
+todavía no existen en reader_web.py.
+
+Por ejemplo, JavaScript actualmente intenta utilizar APIs como:
+
+    open_last_file()
+    get_last_file()
+    create_new_map()
+    get_library()
+    choose_library_folder()
+    open_library_file()
+
+Estas APIs deben implementarse en Python antes de considerarlas
+funcionales.
+
+======================================================================
+13. BIBLIOTECA
+======================================================================
+
+La biblioteca es opcional.
+
+El usuario debe poder elegir una carpeta de Windows.
+
+VECTOR debe recordar esa carpeta.
+
+Dentro de ella se buscan archivos:
+
+    *.imgmap
+
+La biblioteca debe mostrar cada archivo como tarjeta.
+
+Cada tarjeta debe tener:
+
+    portada del .imgmap
+    nombre del archivo debajo
+
+No debe mostrarse solamente el nombre.
+
+Al hacer clic en una tarjeta:
+
+    abrir ese .imgmap.
+
+La biblioteca no debe modificar los archivos.
+
+La carpeta elegida puede contener varios .imgmap.
+
+======================================================================
+14. CONTINUAR
+======================================================================
+
+VECTOR debe recordar cuál fue el último .imgmap abierto correctamente.
+
+La configuración debe guardarse fuera del proyecto, en una ubicación
+de usuario de Windows.
+
+La ubicación prevista es:
+
+    %LOCALAPPDATA%\VECTOR\
+
+con un archivo:
+
+    settings.json
+
+La configuración prevista incluye:
+
+    last_file
+    library
+
+CONTINUAR debe utilizar last_file.
+
+Si el archivo ya no existe:
+
+    no debe producir un error fatal;
+    debe indicar que no existe un archivo reciente.
+
+======================================================================
+15. CONFIGURACIÓN PREVISTA
+======================================================================
+
+Se prevé crear:
+
+    settings.py
+
+Responsabilidades:
+
+- crear la carpeta de configuración;
+- leer settings.json;
+- guardar settings.json;
+- obtener último archivo;
+- establecer último archivo;
+- obtener biblioteca;
+- establecer biblioteca.
+
+No se debe guardar esta configuración dentro del repositorio.
+
+======================================================================
+16. BIBLIOTECA BACKEND PREVISTA
+======================================================================
+
+Se prevé crear:
+
+    library.py
+
+Responsabilidades:
+
+- encontrar archivos .imgmap en una carpeta;
+- leer sus manifests;
+- obtener la ruta de la portada;
+- preparar información para la interfaz;
+- leer bytes de las portadas.
+
+La interfaz web NO debería recibir una ruta Windows directamente
+como si fuera una URL de imagen.
+
+La solución prevista es que el backend proporcione una URL local o
+un identificador seguro para que el navegador pueda solicitar la
+portada.
+
+Una posible arquitectura:
+
+    biblioteca
+       |
+       +-- archivo.imgmap
+       |      |
+       |      +-- manifest
+       |      +-- portada
+       |
+       +-- token interno
+              |
+              +-- /library-cover/<token>
+
+Esto evita intentar convertir directamente rutas Windows en URLs.
+
+======================================================================
+17. SEGURIDAD Y MODIFICACIÓN DE ARCHIVOS
+======================================================================
+
+VECTOR es principalmente un lector.
+
+El lector NO debe:
+
+- modificar imágenes originales;
+- mover archivos;
+- borrar archivos;
+- renombrar archivos;
+- escribir dentro de los .imgmap abiertos;
+- modificar la carpeta de biblioteca.
+
+Abrir y leer un .imgmap debe ser una operación de lectura.
+
+El creador sí puede generar un nuevo .imgmap, pero eso es una
+operación separada del lector.
+
+======================================================================
+18. VELOCIDAD Y RENDIMIENTO
+======================================================================
+
+Una prioridad del proyecto es que el lector sea rápido y visualmente
+suave.
+
+El lector web se está utilizando porque el navegador embebido puede
+manejar mejor:
+
+- imágenes;
+- scroll;
+- renderizado;
+- lazy loading;
+- decodificación asíncrona;
+- interfaz HTML/CSS;
+- zoom mediante CSS.
+
+Actualmente app.js utiliza:
+
+    loading = "lazy"
+    decoding = "async"
+
+para las imágenes.
+
+Esto debe conservarse o mejorarse cuando corresponda.
+
+No se debe volver automáticamente a cargar y redimensionar todas las
+imágenes mediante Pillow en el hilo principal si existe una solución
+más eficiente en el navegador.
+
+======================================================================
+19. ZIP DEL .IMGMAP
+======================================================================
+
+Actualmente el .imgmap se genera utilizando:
+
+    zipfile.ZipFile(..., "w", zipfile.ZIP_DEFLATED)
+
+Por lo tanto, actualmente las imágenes están comprimidas dentro del
+ZIP.
+
+OBJETIVO FUTURO:
+
+Utilizar ZIP STORE en lugar de DEFLATED para las imágenes.
+
+Motivo:
+
+Las imágenes JPG/PNG/WebP ya están comprimidas.
+
+Volver a comprimirlas dentro del ZIP consume CPU y puede empeorar la
+velocidad de acceso.
+
+La idea futura es almacenar las entradas sin compresión:
+
+    ZIP_STORED
+
+Esto debe hacerse posteriormente, cuando la interfaz y el lector estén
+funcionando correctamente.
+
+NO hacer este cambio antes de estabilizar la arquitectura salvo que
+sea necesario para una prueba específica.
+
+======================================================================
+20. PORTADA DEL ARCHIVO
+======================================================================
+
+Cada .imgmap tiene:
+
+    portada raíz
+
+y cada rama tiene:
+
+    portada de rama
+
+La portada raíz sigue formando parte del formato.
+
+Sin embargo:
+
+    ROOT NO la muestra.
+
+La portada de cada rama SÍ se muestra en la tarjeta de la rama.
+
+La portada de un archivo de la biblioteca debe utilizarse como
+miniatura de esa tarjeta.
+
+======================================================================
+21. WINDOWS Y ARCHIVOS .IMGMAP
+======================================================================
+
+Objetivo futuro:
+
+Registrar .imgmap como tipo de archivo asociado a VECTOR.
+
+Al hacer doble clic sobre un .imgmap:
+
+    Windows debería abrir VECTOR
+    y VECTOR debería cargar ese archivo.
+
+También se quiere que Windows pueda mostrar una miniatura/icono
+representativo del .imgmap.
+
+OBJETIVO ESPECIAL:
+
+La miniatura debería utilizar la portada actual del .imgmap.
+
+Esto es una tarea posterior.
+
+Primero debe funcionar correctamente:
+
+    formato
+    lector
+    biblioteca
+    continuar
+    creador
+
+Después se puede implementar:
+
+    asociación de archivos
+    icono
+    thumbnail/preview de Windows
+    instalador
+
+======================================================================
+22. EJECUTABLE FINAL
+======================================================================
+
+El objetivo final es tener un:
+
+    VECTOR.exe
+
+que el usuario pueda abrir directamente.
+
+Al iniciar:
+
+    VECTOR
+      |
+      +-- CONTINUAR
+      |
+      +-- CREAR
+      |
+      +-- BIBLIOTECA (si fue configurada)
+
+La ventana debe iniciar en pantalla completa.
+
+El usuario no debería tener que abrir un navegador manualmente.
+
+pywebview debe proporcionar la ventana nativa.
+
+======================================================================
+23. PANTALLA INICIAL FINAL PREVISTA
+======================================================================
+
+La pantalla inicial está dividida conceptualmente en dos niveles.
+
+NIVEL SUPERIOR
+---------------
+
+Dos acciones principales:
+
+    CONTINUAR | CREAR
+
+Cada una ocupa aproximadamente la mitad del ancho disponible.
+
+CONTINUAR:
+    abre el último .imgmap.
+
+CREAR:
+    inicia la creación de un nuevo .imgmap.
+
+NIVEL INFERIOR
+--------------
+
+Biblioteca.
+
+Si no hay biblioteca:
+
+    mostrar que no existe una biblioteca seleccionada.
+
+Si existe:
+
+    mostrar tarjetas de .imgmap.
+
+Cada tarjeta:
+
+    [ PORTADA ]
+    nombre.imgmap
+
+La biblioteca debe poder desplazarse verticalmente.
+
+La opción de elegir carpeta permite seleccionar una nueva carpeta.
+
+======================================================================
+24. CREACIÓN FUTURA DEL .IMGMAP
+======================================================================
+
+El botón CREAR todavía no tiene que considerarse terminado.
+
+La idea final es que el creador permita crear un mapa sin tener que
+usar necesariamente el viejo packer_gui.py.
+
+El creador futuro debería poder:
+
+- elegir/crear una portada raíz;
+- crear ramas;
+- asignar nombre a ramas;
+- elegir portada de cada rama;
+- agregar imágenes;
+- ordenar imágenes;
+- guardar el resultado como .imgmap.
+
+La forma exacta de esa interfaz todavía puede cambiar.
+
+No asumir detalles que todavía no fueron decididos.
+
+======================================================================
+25. ARQUITECTURA OBJETIVO
+======================================================================
+
+Arquitectura conceptual:
+
+                    VECTOR.exe
+                        |
+                        v
+                 pywebview window
+                        |
+              +---------+---------+
+              |                   |
+              v                   v
+          HTML/CSS              JavaScript
+                                  |
+                                  v
+                         pywebview API
+                                  |
+                                  v
+                               Python
+                                  |
+             +--------------------+------------------+
+             |                    |                  |
+             v                    v                  v
+         mapformat.py         settings.py       library.py
+             |
+             v
+          .imgmap
+             |
+             v
+       ZIP + manifest.json
+             |
+             +-- portada
+             +-- ramas
+             +-- imágenes
+
+El navegador debe encargarse principalmente del renderizado.
+
+Python debe encargarse principalmente de:
+
+- archivos;
+- ZIP;
+- manifest;
+- configuración;
+- diálogos de Windows;
+- comunicación con el frontend.
+
+======================================================================
+26. ORDEN RECOMENDADO DE DESARROLLO
+======================================================================
+
+No implementar todo al mismo tiempo.
+
+ORDEN:
+
+PASO 1
+------
+Conseguir que reader_web.py arranque correctamente con pywebview.
+
+PASO 2
+------
+Alinear la estructura de archivos web:
+
+    reader_web.py
+    index.html
+    app.js
+    app.css
+
+y decidir definitivamente si estarán en raíz o en:
+
+    web/
+
+No mezclar ambas arquitecturas.
+
+PASO 3
+------
+Completar el backend del lector.
+
+PASO 4
+------
+Implementar configuración:
+
+    settings.py
+
+para:
+
+    last_file
+    library
+
+PASO 5
+------
+Implementar biblioteca:
+
+    library.py
+
+incluyendo portadas.
+
+PASO 6
+------
+Conectar:
+
+    CONTINUAR
+    BIBLIOTECA
+    ABRIR DESDE BIBLIOTECA
+
+PASO 7
+------
+Comprobar navegación:
+
+    ESC
+    izquierda
+    derecha
+    arriba
+    abajo
+    rueda
+
+PASO 8
+------
+Comprobar zoom global:
+
+    40 -> 45 -> 50...
+
+y comprobar que no deforma imágenes.
+
+PASO 9
+------
+Mejorar rendimiento.
+
+PASO 10
+-------
+Cambiar el almacenamiento ZIP de DEFLATED a STORE.
+
+PASO 11
+-------
+Completar creador.
+
+PASO 12
+-------
+Generar ejecutable Windows.
+
+PASO 13
+-------
+Asociación .imgmap con VECTOR.
+
+PASO 14
+-------
+Icono/thumbnail de Windows basado en portada.
+
+======================================================================
+27. REGLAS PARA MODIFICAR EL PROYECTO
+======================================================================
+
+Cuando se modifique VECTOR:
+
+1. Revisar primero el estado real del repositorio.
+
+2. No asumir que una modificación propuesta anteriormente ya fue
+   aplicada.
+
+3. No duplicar funcionalidades.
+
+4. No mantener dos arquitecturas diferentes sin una razón clara.
+
+5. Si se reemplaza un archivo, entregar el archivo completo cuando
+   sea razonable.
+
+6. No entregar dos archivos distintos dentro del mismo bloque de
+   código.
+
+7. Mantener separadas las responsabilidades:
+       formato
+       backend
+       configuración
+       biblioteca
+       interfaz
+       lector
+
+8. No romper el formato .imgmap existente sin una razón explícita.
+
+9. Mantener compatibilidad con archivos .imgmap ya creados cuando sea
+   posible.
+
+10. El lector debe ser de solo lectura respecto de los archivos
+    abiertos.
+
+11. Las imágenes nunca deben deformarse.
+
+12. El zoom debe ser global.
+
+13. La portada raíz no se muestra en ROOT.
+
+14. La portada de cada rama sí se muestra en su tarjeta.
+
+15. La biblioteca muestra portada + nombre.
+
+16. Esc vuelve atrás.
+
+17. Izquierda/derecha cambian de rama únicamente si existe una rama
+    anterior/siguiente.
+
+18. No introducir dependencias externas innecesarias.
+
+19. Antes de cambiar una dependencia, revisar requirements.txt.
+
+20. Para problemas del proyecto, usar el código real del repositorio
+    como fuente de verdad.
+
+======================================================================
+28. ESTADO ACTUAL CONOCIDO
+======================================================================
+
+Actualmente:
+
+- mapformat.py existe y define el formato .imgmap.
+- packer_gui.py existe y puede crear .imgmap.
+- reader.py existe como lector antiguo.
+- reader_web.py existe como lector nuevo.
+- index.html existe.
+- app.js existe y ya contiene buena parte de la interfaz prevista.
+- requirements.txt declara pywebview y pythonnet.
+- El lector web todavía necesita completar/alinear varias partes del
+  backend.
+- La biblioteca está parcialmente preparada en JavaScript, pero el
+  backend correspondiente todavía debe implementarse.
+- CONTINUAR está preparado en JavaScript, pero necesita el backend.
+- CREAR está preparado como punto de entrada, pero el creador final
+  todavía no está conectado.
+- El ZIP todavía utiliza DEFLATED.
+- La asociación de Windows y thumbnails todavía no están terminados.
+- La interfaz final fullscreen todavía debe consolidarse.
+
+======================================================================
+29. PROBLEMA ACTUAL DE EJECUCIÓN CONOCIDO
+======================================================================
+
+Al ejecutar:
+
+    python reader_web.py
+
+se produjo:
+
+    ModuleNotFoundError: No module named 'webview'
+
+Esto no significa que el código de reader_web.py tenga necesariamente
+un error de importación.
+
+Significa que el entorno Python utilizado para ejecutar el programa
+no tenía instalado pywebview.
+
+La solución prevista es:
+
+    python -m pip install -r requirements.txt
+
+y después:
+
+    python reader_web.py
+
+======================================================================
+30. INFORMACIÓN QUE DEBE TRATARSE COMO "NO DECIDIDA"
+======================================================================
+
+Todavía NO están completamente definidos:
+
+- diseño visual final;
+- editor/creador completo;
+- sistema final de thumbnails de Windows;
+- instalador;
+- sistema de actualización;
+- historial de múltiples archivos;
+- metadatos adicionales del .imgmap;
+- búsqueda dentro de mapas;
+- marcadores;
+- página actual persistente;
+- configuración adicional del usuario.
+
+No implementar estas funciones por iniciativa propia salvo que se
+decidan explícitamente.
+
+======================================================================
+31. PRINCIPIO GENERAL DEL PROYECTO
+======================================================================
+
+VECTOR debe terminar siendo un lector/creador de mapas de imágenes
+rápido, simple y autónomo para Windows.
+
+El usuario debería poder:
+
+    abrir VECTOR
+        |
+        +-- continuar donde estaba
+        |
+        +-- crear un nuevo mapa
+        |
+        +-- elegir una biblioteca
+        |
+        +-- abrir un .imgmap
+        |
+        +-- navegar por sus ramas
+        |
+        +-- leer las imágenes como una tira continua
+        |
+        +-- cambiar el zoom sin deformar imágenes
+        |
+        +-- volver y cambiar de rama rápidamente
+
+La prioridad técnica es:
+
+    funcionamiento correcto
+        ->
+    navegación fluida
+        ->
+    rendimiento
+        ->
+    empaquetado/ejecutable
+        ->
+    integración con Windows
+
+FIN DEL MAPA DEL PROYECTO VECTOR
