@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Lector Web</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+    <title>VECTOR</title>
+    <link rel="stylesheet" href="/static/app.css">
 </head>
 
 <body>
@@ -19,44 +19,62 @@
         </header>
 
 
-        <!-- =================================================
-             NIVEL 1
-             ================================================= -->
+        <!-- NIVEL 1 -->
 
         <section id="main-actions">
 
-            <button
-                id="btn-continue"
-                class="main-action"
-                type="button"
-            >
+            <button id="btn-continue" class="main-action" type="button">
                 <span class="action-title">CONTINUAR</span>
-                <span
-                    id="continue-file"
-                    class="action-subtitle"
-                >
+                <span id="continue-file" class="action-subtitle">
                     No hay un archivo reciente
                 </span>
             </button>
 
-
-            <button
-                id="btn-create"
-                class="main-action"
-                type="button"
-            >
+            <button id="btn-create" class="main-action" type="button">
                 <span class="action-title">CREAR</span>
                 <span class="action-subtitle">
                     Crear un nuevo .imgmap
                 </span>
             </button>
 
+            <!-- Velocidad de desplazamiento (flechas arriba / abajo) -->
+
+            <section id="speed-panel" class="speed-panel">
+
+                <span class="action-title">VELOCIDAD</span>
+
+                <input
+                    id="speed-input"
+                    type="number"
+                    min="100"
+                    max="5000"
+                    step="100"
+                    value="1200"
+                    aria-label="Velocidad de desplazamiento"
+                >
+
+                <div class="speed-buttons">
+
+                    <button id="speed-apply" class="secondary-button" type="button" disabled>
+                        APLICAR
+                    </button>
+
+                    <button id="speed-reset" class="secondary-button" type="button">
+                        RESTABLECER
+                    </button>
+
+                </div>
+
+                <span id="speed-hint" class="speed-hint">
+                    Flechas ↑ ↓ · px por segundo · por defecto 1200
+                </span>
+
+            </section>
+
         </section>
 
 
-        <!-- =================================================
-             NIVEL 2 - BIBLIOTECA
-             ================================================= -->
+        <!-- NIVEL 2 - BIBLIOTECA -->
 
         <section id="library-section">
 
@@ -64,42 +82,22 @@
 
                 <div>
                     <h2>BIBLIOTECA</h2>
-
-                    <span
-                        id="library-location"
-                        class="library-location"
-                    >
+                    <span id="library-location" class="library-location">
                         Biblioteca no seleccionada
                     </span>
                 </div>
 
-
-                <button
-                    id="btn-library-folder"
-                    class="secondary-button"
-                    type="button"
-                >
+                <button id="btn-library-folder" class="secondary-button" type="button">
                     ELEGIR CARPETA
                 </button>
 
             </div>
 
+            <div id="library-list" class="library-list">
 
-            <div
-                id="library-list"
-                class="library-list"
-            >
-
-                <div
-                    id="library-empty"
-                    class="library-empty"
-                >
+                <div id="library-empty" class="library-empty">
                     <p>No hay una biblioteca seleccionada.</p>
-
-                    <p>
-                        Elegí una carpeta para mostrar tus
-                        archivos .imgmap.
-                    </p>
+                    <p>Elegí una carpeta para mostrar tus archivos .imgmap.</p>
                 </div>
 
             </div>
@@ -113,24 +111,15 @@
          ÍNDICE DEL MAPA
          ===================================================== -->
 
-    <main
-        id="root-view"
-        class="view hidden"
-    >
+    <main id="root-view" class="view hidden">
 
         <header class="map-header">
-
             <div class="map-header-text">
                 <h1 id="root-title"></h1>
             </div>
-
         </header>
 
-
-        <section
-            id="cards"
-            class="branch-grid"
-        ></section>
+        <section id="cards" class="branch-grid"></section>
 
     </main>
 
@@ -139,77 +128,32 @@
          VISOR DE RAMA
          ===================================================== -->
 
-    <main
-        id="branch-view"
-        class="view hidden"
-    >
+    <main id="branch-view" class="view hidden">
 
         <header id="branch-topbar">
 
             <div class="branch-header-left">
-
-                <span
-                    id="branch-title"
-                    class="branch-title"
-                ></span>
-
+                <span id="branch-title" class="branch-title"></span>
             </div>
 
+            <div id="zoom-controls" class="zoom-controls">
 
-            <div
-                id="zoom-controls"
-                class="zoom-controls"
-            >
+                <button id="zoom-out" class="zoom-button" type="button" aria-label="Alejar">−</button>
 
-                <button
-                    id="zoom-out"
-                    class="zoom-button"
-                    type="button"
-                    aria-label="Alejar"
-                >
-                    −
-                </button>
-
-
-                <input
-                    id="zoom-input"
-                    type="number"
-                    min="10"
-                    max="150"
-                    step="5"
-                    value="40"
-                    aria-label="Zoom"
-                >
-
+                <input id="zoom-input" type="number" min="10" max="150" step="5" value="40" aria-label="Zoom">
 
                 <span class="zoom-symbol">%</span>
 
-
-                <button
-                    id="zoom-in"
-                    class="zoom-button"
-                    type="button"
-                    aria-label="Acercar"
-                >
-                    +
-                </button>
+                <button id="zoom-in" class="zoom-button" type="button" aria-label="Acercar">+</button>
 
             </div>
 
         </header>
 
-
-        <section
-            id="strip"
-            class="image-strip"
-        ></section>
+        <section id="strip" class="image-strip"></section>
 
     </main>
 
-
-    <!-- =====================================================
-         JAVASCRIPT
-         ===================================================== -->
 
     <script src="/app.js"></script>
 

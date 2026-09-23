@@ -22,6 +22,8 @@ o:
 
 import re
 import sys
+import hashlib
+import functools
 import json
 import threading
 import traceback
@@ -34,6 +36,7 @@ from urllib.parse import urlparse, unquote
 import webview
 
 from mapformat import read_manifest, build_from_folder, EXTENSION
+from library import get_library_files, read_cover
 
 try:
     import settings  # guarda "ultimo archivo" y "biblioteca" en %LOCALAPPDATA%\\VECTOR
@@ -47,6 +50,10 @@ TEMPLATES_DIR = WEB_DIR / "templates"
 SEARCH_DIRS = [STATIC_DIR, TEMPLATES_DIR, WEB_DIR]
 
 ERROR_LOG = Path.home() / "imgmap_reader_web_error.log"
+
+# python reader_web.py --debug  -> imprime las llamadas de JS a Python y abre las
+# herramientas de desarrollo (clic derecho > Inspeccionar) dentro de la ventana.
+DEBUG = "--debug" in sys.argv
 
 # Tipos de imagen que se sirven desde dentro del .imgmap.
 EXT_MIME = {
@@ -117,6 +124,52 @@ def find_web_file(rel):
     return None
 
 
+def is_allowed_library_file(path):
+    """
+    Solo se permite leer .imgmap que esten directamente dentro de la
+    carpeta de biblioteca elegida por el usuario.
+    """
+    try:
+        path = Path(path).resolve()
+        if path.suffix.lower() != EXTENSION or not path.is_file():
+            return False
+        library = settings.get_library_path() if settings else None
+        return library is not None and path.parent == library.resolve()
+    except Exception:
+        return False
+
+
+# ---------------- VELOCIDAD DE DESPLAZAMIENTO (flechas arriba / abajo) ----------------
+# Unidad: pixeles por segundo mientras se mantiene apretada la flecha.
+
+DEFAULT_SCROLL_SPEED = 1200
+MIN_SCROLL_SPEED = 100
+MAX_SCROLL_SPEED = 5000
+
+
+def _clamp_speed(value):
+    return max(MIN_SCROLL_SPEED, min(MAX_SCROLL_SPEED, int(round(float(value)))))
+
+
+def load_scroll_speed():
+    if settings is None:
+        return DEFAULT_SCROLL_SPEED
+    try:
+        return _clamp_speed(
+            settings.load_settings().get("scroll_speed", DEFAULT_SCROLL_SPEED)
+        )
+    except Exception:
+        return DEFAULT_SCROLL_SPEED
+
+
+def save_scroll_speed(value):
+    if settings is None:
+        return
+    data = settings.load_settings()
+    data["scroll_speed"] = value
+    settings.save_settings(data)
+
+
 class MapState:
     """Guarda el .imgmap actualmente abierto. Solo hay uno a la vez."""
 
@@ -124,6 +177,7 @@ class MapState:
         self.path = None
         self.manifest = None
         self.zf = None
+        self.mtime = 0
         self.lock = threading.Lock()
 
     def open(self, path):
@@ -133,6 +187,7 @@ class MapState:
             self.path = Path(path)
             self.manifest = read_manifest(self.path)
             self.zf = zipfile.ZipFile(self.path, "r")
+            self.mtime = self.path.stat().st_mtime_ns
 
     def read(self, arcname):
         with self.lock:
@@ -155,6 +210,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             parsed = urlparse(self.path)
             route = unquote(parsed.path)
 
+            # Sin icono: responder vacio en vez de 404
+            if route == "/favicon.ico":
+                self.send_response(204)
+                self.end_headers()
+                return
+
             # Pagina principal
             if route in ("/", "/index.html"):
                 return self._serve_static("index.html")
@@ -167,6 +228,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if route.startswith("/img/"):
                 arcname = route[len("/img/"):]
                 return self._serve_image(arcname)
+
+            # Portadas de la biblioteca: /library-cover/<ruta>|<portada>
+            if route.startswith("/library-cover/"):
+                return self._serve_library_cover(route[len("/library-cover/"):])
 
             # Cualquier otro archivo estatico: /app.js, /static/style.css,
             # /style.css, fuentes, etc.
@@ -221,6 +286,26 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _send_cached(self, data, mime, etag):
+        """
+        Cache correcto: el navegador guarda la imagen pero revalida con ETag.
+        (Antes se usaba 'immutable' un anio: al abrir otro .imgmap con los mismos
+        nombres internos, como 1/1.jpg, se veian las imagenes del mapa anterior.)
+        """
+        if self.headers.get("If-None-Match") == etag:
+            self.send_response(304)
+            self.send_header("ETag", etag)
+            self.end_headers()
+            return
+
+        self.send_response(200)
+        self.send_header("Content-Type", mime)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("ETag", etag)
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(data)
+
     def _serve_image(self, arcname):
         try:
             data = STATE.read(arcname)
@@ -231,13 +316,36 @@ class Handler(http.server.BaseHTTPRequestHandler):
         mime = EXT_MIME.get(
             Path(arcname).suffix.lower(), "application/octet-stream"
         )
+        key = f"{STATE.path}|{STATE.mtime}|{arcname}"
+        etag = '"' + hashlib.md5(key.encode("utf-8")).hexdigest() + '"'
+        self._send_cached(data, mime, etag)
 
-        self.send_response(200)
-        self.send_header("Content-Type", mime)
-        self.send_header("Content-Length", str(len(data)))
-        self.send_header("Cache-Control", "public, max-age=31536000, immutable")
-        self.end_headers()
-        self.wfile.write(data)
+    def _serve_library_cover(self, spec):
+        # spec = "C:/carpeta/archivo.imgmap|portada.jpg"
+        map_path, _, cover = spec.rpartition("|")
+        if not map_path or not cover:
+            self.send_error(404)
+            return
+
+        if not is_allowed_library_file(map_path):
+            self.send_error(403)
+            return
+
+        suffix = Path(cover).suffix.lower()
+        if suffix not in EXT_MIME:
+            self.send_error(404)
+            return
+
+        try:
+            data = read_cover(map_path, cover)
+            mtime = Path(map_path).stat().st_mtime_ns
+        except Exception:
+            self.send_error(404)
+            return
+
+        key = f"{map_path}|{mtime}|{cover}"
+        etag = '"' + hashlib.md5(key.encode("utf-8")).hexdigest() + '"'
+        self._send_cached(data, EXT_MIME[suffix], etag)
 
 
 def _open_dialog_type():
@@ -268,6 +376,22 @@ def _first(result):
     return result
 
 
+def logged(fn):
+    """Con --debug imprime cada llamada de JavaScript a Python y su resultado."""
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        if DEBUG:
+            print(f"[API] {fn.__name__}{args[1:]}")
+        result = fn(*args, **kwargs)
+        if DEBUG:
+            text = repr(result)
+            print(f"[API]   -> {text[:300]}")
+        return result
+
+    return wrapper
+
+
 class Api:
     """
     Metodos que JavaScript puede llamar
@@ -275,10 +399,21 @@ class Api:
     """
 
     def __init__(self):
-        self.window = None
+        # OJO: con guion bajo a proposito. pywebview expone a JavaScript todos los
+        # atributos publicos del Api; si la ventana fuera publica (self.window) intentaba
+        # recorrerla entera y fallaba con "maximum recursion depth exceeded".
+        self._window = None
 
+    def _open_path(self, path):
+        """Abre un .imgmap, lo recuerda como ultimo archivo y avisa a JS."""
+        STATE.open(path)
+        if settings is not None:
+            settings.set_last_file(path)
+        return {"path": str(path)}
+
+    @logged
     def choose_and_open(self):
-        result = self.window.create_file_dialog(
+        result = self._window.create_file_dialog(
             _open_dialog_type(),
             file_types=(
                 f"Mapa de imagenes (*{EXTENSION})",
@@ -290,10 +425,9 @@ class Api:
             return None
 
         path = result[0]
-        STATE.open(path)
+        return self._open_path(path)
 
-        return {"path": str(path)}
-
+    @logged
     def create_new_map(self):
         """
         Boton CREAR.
@@ -310,7 +444,7 @@ class Api:
         """
         try:
             folder = _first(
-                self.window.create_file_dialog(
+                self._window.create_file_dialog(
                     _dialog_type("FOLDER"),
                 )
             )
@@ -320,7 +454,7 @@ class Api:
             folder = Path(folder)
 
             output = _first(
-                self.window.create_file_dialog(
+                self._window.create_file_dialog(
                     _dialog_type("SAVE"),
                     save_filename=f"{folder.name}{EXTENSION}",
                     file_types=(
@@ -337,12 +471,101 @@ class Api:
 
             build_from_folder(folder, output, title=folder.name)
 
-            STATE.open(output)
-            if settings is not None:
-                settings.set_last_file(output)
+            return self._open_path(output)
 
-            return {"path": str(output)}
+        except Exception as exc:
+            ERROR_LOG.write_text(traceback.format_exc(), encoding="utf-8")
+            return {"error": str(exc)}
 
+
+    # ---------------- VELOCIDAD DE DESPLAZAMIENTO ----------------
+
+    def _speed_info(self):
+        return {
+            "value": load_scroll_speed(),
+            "default": DEFAULT_SCROLL_SPEED,
+            "min": MIN_SCROLL_SPEED,
+            "max": MAX_SCROLL_SPEED,
+        }
+
+    @logged
+    def get_scroll_speed(self):
+        return self._speed_info()
+
+    @logged
+    def set_scroll_speed(self, value):
+        try:
+            save_scroll_speed(_clamp_speed(value))
+        except (TypeError, ValueError):
+            return {"error": "La velocidad debe ser un numero"}
+        return self._speed_info()
+
+    @logged
+    def reset_scroll_speed(self):
+        save_scroll_speed(DEFAULT_SCROLL_SPEED)
+        return self._speed_info()
+
+    # ---------------- CONTINUAR ----------------
+
+    @logged
+    def get_last_file(self):
+        """{"path", "name"} del ultimo .imgmap abierto, o None si no hay (o ya no existe)."""
+        if settings is None:
+            return None
+        path = settings.get_last_file()
+        if not path:
+            return None
+        return {"path": str(path), "name": Path(path).name}
+
+    @logged
+    def open_last_file(self):
+        if settings is None:
+            return {"error": "No hay un archivo reciente"}
+        path = settings.get_last_file()
+        if path is None:
+            return {"error": "No hay un archivo reciente"}
+        try:
+            return self._open_path(path)
+        except Exception as exc:
+            ERROR_LOG.write_text(traceback.format_exc(), encoding="utf-8")
+            return {"error": str(exc)}
+
+    # ---------------- BIBLIOTECA ----------------
+
+    @logged
+    def get_library(self):
+        """
+        {"path": carpeta o None, "files": [ {name, path, cover, coverUrl}, ... ]}
+        """
+        folder = settings.get_library_path() if settings else None
+        if folder is None:
+            return {"path": None, "files": []}
+        return {"path": str(folder), "files": get_library_files(folder)}
+
+    @logged
+    def choose_library_folder(self):
+        """Boton para elegir la carpeta de biblioteca. Devuelve lo mismo que get_library()."""
+        try:
+            folder = _first(
+                self._window.create_file_dialog(_dialog_type("FOLDER"))
+            )
+            if not folder:
+                return None
+            if settings is None:
+                return {"error": "Falta settings.py"}
+            settings.set_library_path(folder)
+            return self.get_library()
+        except Exception as exc:
+            ERROR_LOG.write_text(traceback.format_exc(), encoding="utf-8")
+            return {"error": str(exc)}
+
+    @logged
+    def open_library_file(self, path):
+        """Abre un .imgmap de la biblioteca (por su ruta completa)."""
+        if not is_allowed_library_file(path):
+            return {"error": "El archivo no pertenece a la biblioteca"}
+        try:
+            return self._open_path(path)
         except Exception as exc:
             ERROR_LOG.write_text(traceback.format_exc(), encoding="utf-8")
             return {"error": str(exc)}
@@ -366,9 +589,10 @@ def start_server():
 def main():
     # Si se paso un archivo .imgmap como argumento,
     # se abre automaticamente.
-    if len(sys.argv) > 1:
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    if args:
         try:
-            STATE.open(sys.argv[1])
+            STATE.open(args[0])
         except Exception:
             ERROR_LOG.write_text(traceback.format_exc(), encoding="utf-8")
 
@@ -385,10 +609,13 @@ def main():
         width=1200,
         height=800,
         min_size=(600, 400),
+        # Ventana normal (barra de titulo arriba con minimizar / maximizar /
+        # cerrar, y Alt+F4 funciona), iniciada maximizada.
+        maximized=True,
     )
-    api.window = window
+    api._window = window
 
-    webview.start()
+    webview.start(debug=DEBUG)
 
 
 if __name__ == "__main__":

@@ -19,24 +19,18 @@ const state = {
     // Rama actualmente abierta
     branchIndex: null,
 
-    // Zoom GLOBAL de VECTOR
-    //
-    // Este valor NO pertenece a una rama.
-    // Tampoco pertenece a un archivo.
-    //
-    // Si pasa de 40 a 45:
-    //
-    // rama 1 -> 45
-    // rama 2 -> 45
-    // rama 3 -> 45
-    //
+    // Zoom GLOBAL de VECTOR (no pertenece a una rama ni a un archivo)
     zoom: 40,
 
     // Información del último archivo
     lastFile: null,
 
     // Biblioteca
-    library: []
+    library: [],
+
+    // Velocidad de desplazamiento con las flechas arriba/abajo (px por segundo)
+    scrollSpeed: 1200,
+    scrollSpeedDefault: 1200
 };
 
 
@@ -49,60 +43,39 @@ const ZOOM_MAX = 150;
 const ZOOM_STEP = 5;
 const ZOOM_DEFAULT = 40;
 
+const SPEED_MIN = 100;
+const SPEED_MAX = 5000;
+
 
 // =========================================================
 // ELEMENTOS HTML
 // =========================================================
 
-const homeView =
-    document.getElementById("home-view");
+const homeView = document.getElementById("home-view");
+const rootView = document.getElementById("root-view");
+const branchView = document.getElementById("branch-view");
 
-const rootView =
-    document.getElementById("root-view");
+const rootTitle = document.getElementById("root-title");
+const cardsEl = document.getElementById("cards");
 
-const branchView =
-    document.getElementById("branch-view");
+const branchTitleEl = document.getElementById("branch-title");
+const stripEl = document.getElementById("strip");
 
+const zoomInput = document.getElementById("zoom-input");
 
-const rootTitle =
-    document.getElementById("root-title");
+const libraryList = document.getElementById("library-list");
+const libraryEmpty = document.getElementById("library-empty");
+const libraryLocation = document.getElementById("library-location");
 
-const cardsEl =
-    document.getElementById("cards");
+const continueButton = document.getElementById("btn-continue");
+const createButton = document.getElementById("btn-create");
+const libraryFolderButton = document.getElementById("btn-library-folder");
+const continueFile = document.getElementById("continue-file");
 
-
-const branchTitleEl =
-    document.getElementById("branch-title");
-
-const stripEl =
-    document.getElementById("strip");
-
-
-const zoomInput =
-    document.getElementById("zoom-input");
-
-
-const libraryList =
-    document.getElementById("library-list");
-
-const libraryEmpty =
-    document.getElementById("library-empty");
-
-const libraryLocation =
-    document.getElementById("library-location");
-
-
-const continueButton =
-    document.getElementById("btn-continue");
-
-const createButton =
-    document.getElementById("btn-create");
-
-const libraryFolderButton =
-    document.getElementById("btn-library-folder");
-
-const continueFile =
-    document.getElementById("continue-file");
+const speedInput = document.getElementById("speed-input");
+const speedApply = document.getElementById("speed-apply");
+const speedReset = document.getElementById("speed-reset");
+const speedHint = document.getElementById("speed-hint");
 
 
 // =========================================================
@@ -111,7 +84,7 @@ const continueFile =
 
 function hasPyWebView() {
 
-    return (
+    return Boolean(
         window.pywebview &&
         window.pywebview.api
     );
@@ -128,58 +101,26 @@ function apiExists(name) {
 
 
 // =========================================================
-// PANTALLA COMPLETA
+// VISIBILIDAD DE VISTAS
 // =========================================================
 
-async function requestFullscreen() {
+function leaveFocus() {
 
-    /*
-     * Los navegadores no permiten iniciar fullscreen
-     * automáticamente sin una interacción del usuario.
-     *
-     * Por eso lo solicitamos cuando el usuario pulsa
-     * una acción de VECTOR.
-     */
+    // Evita que un campo oculto siga "escribiendo" y bloquee las flechas.
+    if (document.activeElement && document.activeElement.blur) {
 
-    if (
-        document.fullscreenElement ||
-        !document.documentElement.requestFullscreen
-    ) {
-        return;
-    }
-
-    try {
-
-        await document.documentElement.requestFullscreen();
-
-    } catch (error) {
-
-        /*
-         * En el .exe definitivo el runtime podrá abrir
-         * directamente la ventana en fullscreen.
-         *
-         * No hacemos fallar VECTOR si el navegador/runtime
-         * no permite fullscreen.
-         */
-
-        console.debug(
-            "Fullscreen no disponible:",
-            error
-        );
+        document.activeElement.blur();
     }
 }
 
 
-// =========================================================
-// VISIBILIDAD DE VISTAS
-// =========================================================
-
 function showHome() {
 
+    leaveFocus();
+    stopKeyScroll();
+
     homeView.classList.remove("hidden");
-
     rootView.classList.add("hidden");
-
     branchView.classList.add("hidden");
 
     state.branchIndex = null;
@@ -188,10 +129,11 @@ function showHome() {
 
 function showRoot() {
 
+    leaveFocus();
+    stopKeyScroll();
+
     homeView.classList.add("hidden");
-
     rootView.classList.remove("hidden");
-
     branchView.classList.add("hidden");
 
     state.branchIndex = null;
@@ -202,10 +144,10 @@ function showRoot() {
 
 function showBranch() {
 
+    leaveFocus();
+
     homeView.classList.add("hidden");
-
     rootView.classList.add("hidden");
-
     branchView.classList.remove("hidden");
 }
 
@@ -216,10 +158,7 @@ function showBranch() {
 
 function imgUrl(arcname) {
 
-    return (
-        "/img/" +
-        encodeURIComponent(arcname)
-    );
+    return "/img/" + encodeURIComponent(arcname);
 }
 
 
@@ -236,43 +175,18 @@ function applyZoom(value) {
         value = ZOOM_DEFAULT;
     }
 
-
-    value = Math.max(
-        ZOOM_MIN,
-        Math.min(ZOOM_MAX, value)
-    );
-
+    value = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, value));
 
     // Ajustamos al múltiplo de 5 más cercano
-    value =
-        Math.round(value / ZOOM_STEP) *
-        ZOOM_STEP;
+    value = Math.round(value / ZOOM_STEP) * ZOOM_STEP;
 
-
-    value = Math.max(
-        ZOOM_MIN,
-        Math.min(ZOOM_MAX, value)
-    );
-
+    value = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, value));
 
     state.zoom = value;
 
     zoomInput.value = value;
 
-
-    /*
-     * Este es el punto importante:
-     *
-     * El zoom está aplicado al contenedor de imágenes.
-     *
-     * No se guarda por archivo.
-     * No se guarda por rama.
-     */
-
-    stripEl.style.setProperty(
-        "--zoom-vw",
-        value + "vw"
-    );
+    stripEl.style.setProperty("--zoom-vw", value + "vw");
 }
 
 
@@ -284,26 +198,18 @@ async function fetchManifest() {
 
     try {
 
-        const response =
-            await fetch("/manifest", {
-                cache: "no-store"
-            });
-
+        const response = await fetch("/manifest", { cache: "no-store" });
 
         if (!response.ok) {
 
             return null;
         }
 
-
         return await response.json();
 
     } catch (error) {
 
-        console.error(
-            "No se pudo obtener el manifest:",
-            error
-        );
+        console.error("No se pudo obtener el manifest:", error);
 
         return null;
     }
@@ -316,98 +222,42 @@ async function fetchManifest() {
 
 function renderRoot() {
 
-    const manifest =
-        state.manifest;
-
+    const manifest = state.manifest;
 
     if (!manifest) {
 
         return;
     }
 
+    // La portada raíz NO se muestra en esta pantalla.
 
-    /*
-     * IMPORTANTE:
-     *
-     * Ya NO mostramos la portada raíz.
-     *
-     * La portada raíz sigue existiendo dentro
-     * del formato .imgmap, pero no forma parte
-     * de esta interfaz.
-     */
-
-    rootTitle.textContent =
-        manifest.title || "Mapa";
-
+    rootTitle.textContent = manifest.title || "Mapa";
 
     cardsEl.innerHTML = "";
 
+    const branches = Array.isArray(manifest.branches) ? manifest.branches : [];
 
-    const branches =
-        Array.isArray(manifest.branches)
-            ? manifest.branches
-            : [];
+    branches.forEach((branch, index) => {
 
+        const card = document.createElement("article");
+        card.className = "card";
 
-    branches.forEach(
-        (branch, index) => {
+        const image = document.createElement("img");
+        image.src = imgUrl(branch.cover);
+        image.loading = "lazy";
+        image.alt = branch.name || "Rama";
 
-            const card =
-                document.createElement("article");
+        const name = document.createElement("div");
+        name.className = "card-name";
+        name.textContent = branch.name || "Rama";
 
+        card.appendChild(image);
+        card.appendChild(name);
 
-            card.className =
-                "card";
+        card.addEventListener("click", () => openBranch(index));
 
-
-            const image =
-                document.createElement("img");
-
-
-            image.src =
-                imgUrl(branch.cover);
-
-
-            image.loading =
-                "lazy";
-
-
-            image.alt =
-                branch.name || "Rama";
-
-
-            const name =
-                document.createElement("div");
-
-
-            name.className =
-                "card-name";
-
-
-            name.textContent =
-                branch.name || "Rama";
-
-
-            card.appendChild(image);
-
-            card.appendChild(name);
-
-
-            /*
-             * Se puede hacer clic tanto sobre
-             * la imagen como sobre el nombre,
-             * porque todo es una sola tarjeta.
-             */
-
-            card.addEventListener(
-                "click",
-                () => openBranch(index)
-            );
-
-
-            cardsEl.appendChild(card);
-        }
-    );
+        cardsEl.appendChild(card);
+    });
 }
 
 
@@ -417,154 +267,79 @@ function renderRoot() {
 
 function openBranch(index) {
 
-    const manifest =
-        state.manifest;
-
+    const manifest = state.manifest;
 
     if (!manifest) {
 
         return;
     }
 
+    const branches = Array.isArray(manifest.branches) ? manifest.branches : [];
 
-    const branches =
-        Array.isArray(manifest.branches)
-            ? manifest.branches
-            : [];
-
-
-    /*
-     * Si intentamos ir antes de la primera
-     * o después de la última rama,
-     * simplemente no hacemos nada.
-     */
-
-    if (
-        index < 0 ||
-        index >= branches.length
-    ) {
+    // Antes de la primera o después de la última: no hacemos nada.
+    if (index < 0 || index >= branches.length) {
 
         return;
     }
 
+    state.branchIndex = index;
 
-    state.branchIndex =
-        index;
+    const branch = branches[index];
 
+    branchTitleEl.textContent = branch.name || "Rama";
 
-    const branch =
-        branches[index];
+    stripEl.innerHTML = "";
 
+    const images = Array.isArray(branch.images) ? branch.images : [];
 
-    branchTitleEl.textContent =
-        branch.name || "Rama";
+    // branch.images NO incluye la portada de la rama.
 
+    images.forEach((arcname, imageIndex) => {
 
-    stripEl.innerHTML =
-        "";
+        const image = document.createElement("img");
 
+        image.src = imgUrl(arcname);
+        image.alt = `${branch.name || "Rama"} - imagen ${imageIndex + 1}`;
+        image.loading = "lazy";
+        image.decoding = "async";
 
-    const images =
-        Array.isArray(branch.images)
-            ? branch.images
-            : [];
+        stripEl.appendChild(image);
+    });
 
-
-    /*
-     * IMPORTANTE:
-     *
-     * branch.images NO incluye la portada
-     * de la rama según el formato actual.
-     *
-     * Por eso solamente mostramos las imágenes
-     * que pertenecen a la tira.
-     */
-
-    images.forEach(
-        (arcname, imageIndex) => {
-
-            const image =
-                document.createElement("img");
-
-
-            image.src =
-                imgUrl(arcname);
-
-
-            image.alt =
-                `${branch.name || "Rama"} - imagen ${imageIndex + 1}`;
-
-
-            /*
-             * Lazy loading.
-             *
-             * El navegador no tiene que decodificar
-             * inmediatamente todas las imágenes.
-             */
-
-            image.loading =
-                "lazy";
-
-
-            image.decoding =
-                "async";
-
-
-            stripEl.appendChild(image);
-        }
-    );
-
-
-    /*
-     * Conservamos el zoom GLOBAL.
-     *
-     * Al cambiar de rama NO vuelve a 40%.
-     */
-
+    // El zoom GLOBAL se conserva al cambiar de rama.
     applyZoom(state.zoom);
 
-
     showBranch();
-
-
-    /*
-     * Comenzamos la rama desde arriba.
-     */
 
     stripEl.scrollTop = 0;
 }
 
 
 // =========================================================
-// VOLVER AL ÍNDICE
+// VOLVER
 // =========================================================
 
 function goBack() {
 
-    if (
-        state.manifest &&
-        state.branchIndex !== null
-    ) {
+    if (state.manifest && state.branchIndex !== null) {
 
         showRoot();
 
         return;
     }
 
-
-    /*
-     * Si no estamos dentro de una rama
-     * pero tenemos un mapa abierto,
-     * ESC vuelve a la pantalla inicial.
-     */
-
+    // Desde el índice, ESC vuelve a la pantalla inicial.
     if (state.manifest) {
 
         state.manifest = null;
-
         state.path = null;
 
         showHome();
+
+        // Refrescamos la biblioteca y el texto de CONTINUAR
+        // (por si se creó o se abrió un archivo nuevo).
+        loadLibrary();
+        loadLastFileInfo();
     }
 }
 
@@ -575,24 +350,13 @@ function goBack() {
 
 function goSibling(delta) {
 
-    if (
-        state.branchIndex === null
-    ) {
+    if (state.branchIndex === null) {
 
         return;
     }
 
-
-    const nextIndex =
-        state.branchIndex + delta;
-
-
-    /*
-     * openBranch() se encarga de comprobar
-     * si la rama existe.
-     */
-
-    openBranch(nextIndex);
+    // openBranch() comprueba si la rama existe.
+    openBranch(state.branchIndex + delta);
 }
 
 
@@ -607,77 +371,65 @@ async function openFromPath(path) {
         return false;
     }
 
+    state.path = path;
 
-    state.path =
-        path;
-
-
-    const manifest =
-        await fetchManifest();
-
+    const manifest = await fetchManifest();
 
     if (!manifest) {
 
-        console.error(
-            "No se pudo cargar el manifest."
-        );
+        console.error("No se pudo cargar el manifest.");
 
         return false;
     }
 
-
-    state.manifest =
-        manifest;
-
-
-    /*
-     * El zoom NO se obtiene de este archivo.
-     *
-     * Es global.
-     */
+    state.manifest = manifest;
 
     applyZoom(state.zoom);
 
-
     renderRoot();
 
-
     showRoot();
-
 
     return true;
 }
 
 
+// Procesa la respuesta de Python: {path}, {error} o null (cancelado).
+async function handleOpenResult(result) {
+
+    if (!result) {
+
+        return;
+    }
+
+    if (result.error) {
+
+        alert(result.error);
+
+        return;
+    }
+
+    if (result.path) {
+
+        await openFromPath(result.path);
+    }
+}
+
+
 // =========================================================
-// ABRIR ARCHIVO CON EL SELECTOR ACTUAL
+// ABRIR ARCHIVO CON EL SELECTOR
 // =========================================================
 
 async function chooseAndOpen() {
 
     if (!apiExists("choose_and_open")) {
 
-        console.warn(
-            "choose_and_open todavía no está disponible."
-        );
+        console.warn("choose_and_open todavía no está disponible.");
 
         return;
     }
 
-
-    const result =
-        await window.pywebview.api.choose_and_open();
-
-
-    if (
-        result &&
-        result.path
-    ) {
-
-        await openFromPath(
-            result.path
-        );
-    }
+    await handleOpenResult(await window.pywebview.api.choose_and_open());
 }
 
 
@@ -687,8 +439,6 @@ async function chooseAndOpen() {
 
 async function continueLastFile() {
 
-    await requestFullscreen();
-
     if (!apiExists("open_last_file")) {
 
         return;
@@ -696,25 +446,11 @@ async function continueLastFile() {
 
     try {
 
-        const result =
-            await window.pywebview.api.open_last_file();
-
-        if (
-            result &&
-            result.path
-        ) {
-
-            await openFromPath(
-                result.path
-            );
-        }
+        await handleOpenResult(await window.pywebview.api.open_last_file());
 
     } catch (error) {
 
-        console.error(
-            "Error al continuar:",
-            error
-        );
+        console.error("Error al continuar:", error);
     }
 }
 
@@ -725,37 +461,22 @@ async function continueLastFile() {
 
 async function createNewMap() {
 
-    await requestFullscreen();
+    if (!apiExists("create_new_map")) {
 
-
-    /*
-     * El creador se conectará en una etapa posterior.
-     *
-     * Si el backend ya dispone de create_new_map(),
-     * lo utilizamos.
-     */
-
-    if (apiExists("create_new_map")) {
-
-        try {
-
-            await window.pywebview.api.create_new_map();
-
-        } catch (error) {
-
-            console.error(
-                "Error al abrir el creador:",
-                error
-            );
-        }
+        console.info("create_new_map no está disponible.");
 
         return;
     }
 
+    try {
 
-    console.info(
-        "El creador de .imgmap se conectará en el siguiente paso."
-    );
+        // Python pide la carpeta y dónde guardar, crea el .imgmap y lo abre.
+        await handleOpenResult(await window.pywebview.api.create_new_map());
+
+    } catch (error) {
+
+        console.error("Error al crear el .imgmap:", error);
+    }
 }
 
 
@@ -767,129 +488,61 @@ function clearLibrary() {
 
     libraryList.innerHTML = "";
 
-    libraryList.appendChild(
-        libraryEmpty
-    );
+    libraryList.appendChild(libraryEmpty);
 }
 
 
 function renderLibrary(files) {
 
-    state.library =
-        Array.isArray(files)
-            ? files
-            : [];
-
+    state.library = Array.isArray(files) ? files : [];
 
     clearLibrary();
 
-
     if (state.library.length === 0) {
 
-        libraryEmpty.classList.remove(
-            "hidden"
-        );
+        libraryEmpty.classList.remove("hidden");
 
         return;
     }
 
+    libraryEmpty.classList.add("hidden");
 
-    libraryEmpty.classList.add(
-        "hidden"
-    );
+    state.library.forEach((file) => {
 
+        const card = document.createElement("article");
+        card.className = "library-card";
 
-    state.library.forEach(
-        (file) => {
+        const imageContainer = document.createElement("div");
+        imageContainer.className = "library-card-image-container";
 
-            const card =
-                document.createElement("article");
+        const image = document.createElement("img");
+        image.className = "library-card-image";
 
+        if (file.coverUrl) {
 
-            card.className =
-                "library-card";
+            image.src = file.coverUrl;
 
+        } else if (file.cover) {
 
-            const imageContainer =
-                document.createElement("div");
-
-
-            imageContainer.className =
-                "library-card-image-container";
-
-
-            const image =
-                document.createElement("img");
-
-
-            image.className =
-                "library-card-image";
-
-
-            /*
-             * En el Paso 2 el backend proporcionará
-             * la URL de la portada.
-             */
-
-            if (file.coverUrl) {
-
-                image.src =
-                    file.coverUrl;
-
-            } else if (file.cover) {
-
-                image.src =
-                    imgUrl(file.cover);
-
-            }
-
-
-            image.alt =
-                file.name || ".imgmap";
-
-
-            image.loading =
-                "lazy";
-
-
-            imageContainer.appendChild(
-                image
-            );
-
-
-            const name =
-                document.createElement("div");
-
-
-            name.className =
-                "library-card-name";
-
-
-            name.textContent =
-                file.name || ".imgmap";
-
-
-            card.appendChild(
-                imageContainer
-            );
-
-
-            card.appendChild(
-                name
-            );
-
-
-            card.addEventListener(
-                "click",
-                () => openLibraryFile(file)
-            );
-
-
-            libraryList.appendChild(
-                card
-            );
+            image.src = imgUrl(file.cover);
         }
-    );
+
+        image.alt = file.name || ".imgmap";
+        image.loading = "lazy";
+
+        imageContainer.appendChild(image);
+
+        const name = document.createElement("div");
+        name.className = "library-card-name";
+        name.textContent = file.name || ".imgmap";
+
+        card.appendChild(imageContainer);
+        card.appendChild(name);
+
+        card.addEventListener("click", () => openLibraryFile(file));
+
+        libraryList.appendChild(card);
+    });
 }
 
 
@@ -904,40 +557,22 @@ async function openLibraryFile(file) {
         return;
     }
 
-    await requestFullscreen();
-
     if (!apiExists("open_library_file")) {
 
-        console.error(
-            "open_library_file no está disponible."
-        );
+        console.error("open_library_file no está disponible.");
 
         return;
     }
 
     try {
 
-        const result =
-            await window.pywebview.api.open_library_file(
-                file.path
-            );
-
-        if (
-            result &&
-            result.path
-        ) {
-
-            await openFromPath(
-                result.path
-            );
-        }
+        await handleOpenResult(
+            await window.pywebview.api.open_library_file(file.path)
+        );
 
     } catch (error) {
 
-        console.error(
-            "Error al abrir el archivo de biblioteca:",
-            error
-        );
+        console.error("Error al abrir el archivo de biblioteca:", error);
     }
 }
 
@@ -950,24 +585,16 @@ async function loadLibrary() {
 
     if (!apiExists("get_library")) {
 
-        /*
-         * Esto es normal durante el Paso 1.
-         */
-
-        libraryLocation.textContent =
-            "Biblioteca no disponible todavía";
+        libraryLocation.textContent = "Biblioteca no disponible todavía";
 
         renderLibrary([]);
 
         return;
     }
 
-
     try {
 
-        const result =
-            await window.pywebview.api.get_library();
-
+        const result = await window.pywebview.api.get_library();
 
         if (!result) {
 
@@ -976,30 +603,14 @@ async function loadLibrary() {
             return;
         }
 
+        libraryLocation.textContent =
+            result.path || "Biblioteca no seleccionada";
 
-        if (result.path) {
-
-            libraryLocation.textContent =
-                result.path;
-
-        } else {
-
-            libraryLocation.textContent =
-                "Biblioteca no seleccionada";
-        }
-
-
-        renderLibrary(
-            result.files || []
-        );
-
+        renderLibrary(result.files || []);
 
     } catch (error) {
 
-        console.error(
-            "Error al cargar la biblioteca:",
-            error
-        );
+        console.error("Error al cargar la biblioteca:", error);
 
         renderLibrary([]);
     }
@@ -1012,49 +623,39 @@ async function loadLibrary() {
 
 async function chooseLibraryFolder() {
 
-    await requestFullscreen();
-
-
     if (!apiExists("choose_library_folder")) {
 
-        console.info(
-            "choose_library_folder todavía no está disponible."
-        );
+        console.info("choose_library_folder todavía no está disponible.");
 
         return;
     }
 
-
     try {
 
-        const result =
-            await window.pywebview.api.choose_library_folder();
-
+        const result = await window.pywebview.api.choose_library_folder();
 
         if (!result) {
 
             return;
         }
 
+        if (result.error) {
+
+            alert(result.error);
+
+            return;
+        }
 
         if (result.path) {
 
-            libraryLocation.textContent =
-                result.path;
+            libraryLocation.textContent = result.path;
         }
 
-
-        renderLibrary(
-            result.files || []
-        );
-
+        renderLibrary(result.files || []);
 
     } catch (error) {
 
-        console.error(
-            "Error al seleccionar la biblioteca:",
-            error
-        );
+        console.error("Error al seleccionar la biblioteca:", error);
     }
 }
 
@@ -1067,59 +668,289 @@ async function loadLastFileInfo() {
 
     if (!apiExists("get_last_file")) {
 
-        continueFile.textContent =
-            "No hay información del último archivo";
+        continueFile.textContent = "No hay información del último archivo";
 
-        continueButton.disabled =
-            true;
+        continueButton.disabled = true;
 
         return;
     }
 
-
     try {
 
-        const result =
-            await window.pywebview.api.get_last_file();
+        const result = await window.pywebview.api.get_last_file();
 
+        if (result && result.path) {
 
-        if (
-            result &&
-            result.path
-        ) {
+            state.lastFile = result;
 
-            state.lastFile =
-                result;
+            continueFile.textContent = result.name || result.path;
 
-
-            continueFile.textContent =
-                result.name ||
-                result.path;
-
-
-            continueButton.disabled =
-                false;
+            continueButton.disabled = false;
 
         } else {
 
-            continueFile.textContent =
-                "No hay un archivo reciente";
+            continueFile.textContent = "No hay un archivo reciente";
 
-            continueButton.disabled =
-                true;
+            continueButton.disabled = true;
         }
-
 
     } catch (error) {
 
-        console.error(
-            "Error obteniendo el último archivo:",
-            error
-        );
+        console.error("Error obteniendo el último archivo:", error);
 
-        continueButton.disabled =
-            true;
+        continueButton.disabled = true;
     }
+}
+
+
+// =========================================================
+// VELOCIDAD DE DESPLAZAMIENTO
+// =========================================================
+
+function clampSpeed(value) {
+
+    value = Number(value);
+
+    if (!Number.isFinite(value)) {
+
+        return null;
+    }
+
+    return Math.max(SPEED_MIN, Math.min(SPEED_MAX, Math.round(value)));
+}
+
+
+// Habilita / deshabilita APLICAR y RESTABLECER según lo que hay escrito.
+function refreshSpeedUi() {
+
+    const typed = clampSpeed(speedInput.value);
+
+    speedApply.disabled =
+        typed === null ||
+        typed === state.scrollSpeed;
+
+    speedReset.disabled =
+        state.scrollSpeed === state.scrollSpeedDefault &&
+        typed === state.scrollSpeedDefault;
+}
+
+
+function setSpeedFromApi(info) {
+
+    if (!info || !info.value) {
+
+        return;
+    }
+
+    state.scrollSpeed = info.value;
+
+    if (info.default) {
+
+        state.scrollSpeedDefault = info.default;
+    }
+
+    speedInput.value = state.scrollSpeed;
+
+    speedHint.textContent =
+        "Flechas ↑ ↓ · px por segundo · por defecto " +
+        state.scrollSpeedDefault;
+
+    refreshSpeedUi();
+}
+
+
+async function loadScrollSpeed() {
+
+    if (!apiExists("get_scroll_speed")) {
+
+        refreshSpeedUi();
+
+        return;
+    }
+
+    try {
+
+        setSpeedFromApi(await window.pywebview.api.get_scroll_speed());
+
+    } catch (error) {
+
+        console.error("Error obteniendo la velocidad:", error);
+    }
+}
+
+
+async function applySpeed() {
+
+    const typed = clampSpeed(speedInput.value);
+
+    if (typed === null) {
+
+        speedInput.value = state.scrollSpeed;
+
+        refreshSpeedUi();
+
+        return;
+    }
+
+    if (apiExists("set_scroll_speed")) {
+
+        try {
+
+            const info = await window.pywebview.api.set_scroll_speed(typed);
+
+            if (info && info.value) {
+
+                setSpeedFromApi(info);
+
+                return;
+            }
+
+        } catch (error) {
+
+            console.error("Error guardando la velocidad:", error);
+        }
+    }
+
+    // Sin backend: al menos se usa durante esta sesión.
+    state.scrollSpeed = typed;
+
+    speedInput.value = typed;
+
+    refreshSpeedUi();
+}
+
+
+async function resetSpeed() {
+
+    if (apiExists("reset_scroll_speed")) {
+
+        try {
+
+            const info = await window.pywebview.api.reset_scroll_speed();
+
+            if (info && info.value) {
+
+                setSpeedFromApi(info);
+
+                return;
+            }
+
+        } catch (error) {
+
+            console.error("Error restableciendo la velocidad:", error);
+        }
+    }
+
+    state.scrollSpeed = state.scrollSpeedDefault;
+
+    speedInput.value = state.scrollSpeed;
+
+    refreshSpeedUi();
+}
+
+
+speedInput.addEventListener("input", refreshSpeedUi);
+
+speedInput.addEventListener("keydown", (event) => {
+
+    if (event.key === "Enter") {
+
+        event.preventDefault();
+
+        applySpeed();
+    }
+});
+
+speedApply.addEventListener("click", applySpeed);
+
+speedReset.addEventListener("click", resetSpeed);
+
+
+// =========================================================
+// DESPLAZAMIENTO CON FLECHAS ARRIBA / ABAJO
+// =========================================================
+
+/*
+ * Antes cada pulsación (y cada repetición de la tecla) lanzaba un
+ * scrollBy({behavior: "smooth"}). Esas animaciones se pisaban unas a
+ * otras y el movimiento se trababa.
+ *
+ * Ahora, mientras la flecha está apretada, un bucle con
+ * requestAnimationFrame mueve el scroll a una velocidad constante
+ * (state.scrollSpeed en píxeles por segundo), igual de fluido que
+ * la rueda del mouse.
+ */
+
+const scrollKeys = { up: false, down: false };
+
+let scrollFrameId = null;
+let lastFrameTime = 0;
+let scrollRemainder = 0;
+
+
+function scrollFrame(now) {
+
+    const direction =
+        (scrollKeys.down ? 1 : 0) -
+        (scrollKeys.up ? 1 : 0);
+
+    if (direction === 0 || state.branchIndex === null) {
+
+        stopKeyScroll();
+
+        return;
+    }
+
+    // Máximo 50 ms por cuadro para evitar saltos si la ventana se congela.
+    const elapsed = Math.min(now - lastFrameTime, 50);
+
+    lastFrameTime = now;
+
+    const delta =
+        direction * state.scrollSpeed * elapsed / 1000 +
+        scrollRemainder;
+
+    const whole = Math.trunc(delta);
+
+    scrollRemainder = delta - whole;
+
+    if (whole !== 0) {
+
+        stripEl.scrollTop += whole;
+    }
+
+    scrollFrameId = requestAnimationFrame(scrollFrame);
+}
+
+
+function startKeyScroll() {
+
+    if (scrollFrameId !== null) {
+
+        return;
+    }
+
+    lastFrameTime = performance.now();
+
+    scrollRemainder = 0;
+
+    scrollFrameId = requestAnimationFrame(scrollFrame);
+}
+
+
+function stopKeyScroll() {
+
+    scrollKeys.up = false;
+    scrollKeys.down = false;
+
+    if (scrollFrameId !== null) {
+
+        cancelAnimationFrame(scrollFrameId);
+
+        scrollFrameId = null;
+    }
+
+    scrollRemainder = 0;
 }
 
 
@@ -1127,223 +958,137 @@ async function loadLastFileInfo() {
 // EVENTOS - INICIO
 // =========================================================
 
-continueButton.addEventListener(
-    "click",
-    continueLastFile
-);
+continueButton.addEventListener("click", continueLastFile);
 
+createButton.addEventListener("click", createNewMap);
 
-createButton.addEventListener(
-    "click",
-    createNewMap
-);
-
-
-libraryFolderButton.addEventListener(
-    "click",
-    chooseLibraryFolder
-);
+libraryFolderButton.addEventListener("click", chooseLibraryFolder);
 
 
 // =========================================================
 // EVENTOS - ZOOM
 // =========================================================
 
-document
-    .getElementById("zoom-in")
-    .addEventListener(
-        "click",
-        () => {
+document.getElementById("zoom-in")
+    .addEventListener("click", () => applyZoom(state.zoom + ZOOM_STEP));
 
-            applyZoom(
-                state.zoom + ZOOM_STEP
-            );
-        }
-    );
+document.getElementById("zoom-out")
+    .addEventListener("click", () => applyZoom(state.zoom - ZOOM_STEP));
 
-
-document
-    .getElementById("zoom-out")
-    .addEventListener(
-        "click",
-        () => {
-
-            applyZoom(
-                state.zoom - ZOOM_STEP
-            );
-        }
-    );
-
-
-zoomInput.addEventListener(
-    "change",
-    () => {
-
-        applyZoom(
-            zoomInput.value
-        );
-    }
-);
+zoomInput.addEventListener("change", () => applyZoom(zoomInput.value));
 
 
 // =========================================================
 // TECLADO
 // =========================================================
 
-document.addEventListener(
-    "keydown",
-    (event) => {
+document.addEventListener("keydown", (event) => {
 
-        const activeElement =
-            document.activeElement;
+    const activeElement = document.activeElement;
 
+    const tag = activeElement ? activeElement.tagName : "";
 
-        const tag =
-            activeElement
-                ? activeElement.tagName
-                : "";
+    // No capturamos las teclas mientras se escribe en el campo del zoom.
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
 
+        return;
+    }
 
-        /*
-         * No capturamos las flechas mientras
-         * el usuario está escribiendo en el
-         * campo del zoom.
-         */
+    // ESC
+    if (event.key === "Escape") {
 
-        if (
-            tag === "INPUT" ||
-            tag === "TEXTAREA" ||
-            tag === "SELECT"
-        ) {
+        event.preventDefault();
 
-            return;
-        }
+        goBack();
 
+        return;
+    }
 
-        // -----------------------------------------
-        // ESC
-        // -----------------------------------------
+    // IZQUIERDA
+    if (event.key === "ArrowLeft") {
 
-        if (
-            event.key === "Escape"
-        ) {
+        if (state.branchIndex !== null) {
 
             event.preventDefault();
 
-            goBack();
-
-            return;
+            goSibling(-1);
         }
 
-
-        // -----------------------------------------
-        // IZQUIERDA
-        // -----------------------------------------
-
-        if (
-            event.key === "ArrowLeft"
-        ) {
-
-            if (
-                state.branchIndex !== null
-            ) {
-
-                event.preventDefault();
-
-                goSibling(-1);
-            }
-
-            return;
-        }
-
-
-        // -----------------------------------------
-        // DERECHA
-        // -----------------------------------------
-
-        if (
-            event.key === "ArrowRight"
-        ) {
-
-            if (
-                state.branchIndex !== null
-            ) {
-
-                event.preventDefault();
-
-                goSibling(1);
-            }
-
-            return;
-        }
-
-
-        // -----------------------------------------
-        // ARRIBA
-        // -----------------------------------------
-
-        if (
-            event.key === "ArrowUp"
-        ) {
-
-            if (
-                state.branchIndex !== null
-            ) {
-
-                event.preventDefault();
-
-                stripEl.scrollBy({
-                    top: -window.innerHeight * 0.75,
-                    left: 0,
-                    behavior: "smooth"
-                });
-            }
-
-            return;
-        }
-
-
-        // -----------------------------------------
-        // ABAJO
-        // -----------------------------------------
-
-        if (
-            event.key === "ArrowDown"
-        ) {
-
-            if (
-                state.branchIndex !== null
-            ) {
-
-                event.preventDefault();
-
-                stripEl.scrollBy({
-                    top: window.innerHeight * 0.75,
-                    left: 0,
-                    behavior: "smooth"
-                });
-            }
-
-            return;
-        }
-
+        return;
     }
-);
+
+    // DERECHA
+    if (event.key === "ArrowRight") {
+
+        if (state.branchIndex !== null) {
+
+            event.preventDefault();
+
+            goSibling(1);
+        }
+
+        return;
+    }
+
+    // ARRIBA
+    if (event.key === "ArrowUp") {
+
+        if (state.branchIndex !== null) {
+
+            event.preventDefault();
+
+            scrollKeys.up = true;
+
+            startKeyScroll();
+        }
+
+        return;
+    }
+
+    // ABAJO
+    if (event.key === "ArrowDown") {
+
+        if (state.branchIndex !== null) {
+
+            event.preventDefault();
+
+            scrollKeys.down = true;
+
+            startKeyScroll();
+        }
+
+        return;
+    }
+});
+
+
+document.addEventListener("keyup", (event) => {
+
+    if (event.key === "ArrowUp") {
+
+        scrollKeys.up = false;
+    }
+
+    if (event.key === "ArrowDown") {
+
+        scrollKeys.down = false;
+    }
+
+    if (!scrollKeys.up && !scrollKeys.down) {
+
+        stopKeyScroll();
+    }
+});
+
+// Si la ventana pierde el foco con una flecha apretada, se detiene.
+window.addEventListener("blur", stopKeyScroll);
 
 
 // =========================================================
 // RUEDA DEL MOUSE
 // =========================================================
 
-/*
- * No interceptamos la rueda del mouse.
- *
- * El navegador se encarga directamente del
- * scroll vertical del visor.
- *
- * Esto es deliberado para mantener el
- * desplazamiento lo más fluido posible.
- */
+// No se intercepta: el navegador maneja el scroll directamente.
 
 
 // =========================================================
@@ -1352,78 +1097,65 @@ document.addEventListener(
 
 async function initialize() {
 
-    /*
-     * Zoom inicial global.
-     */
-
-    applyZoom(
-        ZOOM_DEFAULT
-    );
-
-
-    /*
-     * Primero mostramos la pantalla inicial.
-     */
+    applyZoom(ZOOM_DEFAULT);
 
     showHome();
 
-
-    /*
-     * Intentamos cargar la biblioteca.
-     *
-     * Durante el Paso 1 todavía puede no existir
-     * get_library(). En ese caso simplemente queda
-     * vacía.
-     */
-
     await loadLibrary();
-
-
-    /*
-     * Averiguamos si existe un último archivo.
-     */
 
     await loadLastFileInfo();
 
+    await loadScrollSpeed();
 
-    /*
-     * Compatibilidad con la versión actual:
-     *
-     * Si Python arrancó con un archivo ya abierto
-     * y /manifest lo devuelve directamente,
-     * lo cargamos.
-     */
+    // Si Python arrancó con un archivo ya abierto, lo cargamos.
+    const manifest = await fetchManifest();
 
-    const manifest =
-        await fetchManifest();
+    if (manifest && manifest._path) {
 
-
-    if (
-        manifest &&
-        manifest._path
-    ) {
-
-        await openFromPath(
-            manifest._path
-        );
+        await openFromPath(manifest._path);
     }
 }
 
 
-// =========================================================
-// INICIO DE LA APLICACIÓN
-// =========================================================
-
 /*
- * pywebview expone window.pywebview.api
- * después de que la ventana termina de inicializarse.
+ * Arranque seguro.
  *
- * No debemos ejecutar initialize() solamente con
- * DOMContentLoaded porque en ese momento la API de
- * Python todavía puede no existir.
+ * Antes solo se escuchaba el evento "pywebviewready". Si ese evento ya
+ * había ocurrido cuando se ejecutaba este archivo, initialize() nunca
+ * corría y la pantalla quedaba sin biblioteca ni CONTINUAR (fallaba
+ * "a veces"). Ahora se cubren los tres casos y se ejecuta UNA sola vez.
  */
 
-window.addEventListener(
-    "pywebviewready",
-    initialize
-);
+let started = false;
+
+function start() {
+
+    if (started) {
+
+        return;
+    }
+
+    started = true;
+
+    initialize();
+}
+
+window.addEventListener("pywebviewready", start);
+
+if (hasPyWebView()) {
+
+    start();
+
+} else {
+
+    const poll = setInterval(() => {
+
+        if (hasPyWebView()) {
+
+            clearInterval(poll);
+
+            start();
+        }
+
+    }, 100);
+}
