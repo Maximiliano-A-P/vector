@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Lector de mapas de imagenes</title>
+<link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+
+  <div id="topbar">
+    <button id="btn-open">Abrir .imgmap...</button>
+    <span id="progress-text"></span>
+  </div>
+
+  <div id="root-view">
+    <img id="root-cover" alt="portada" />
+    <h1 id="root-title"></h1>
+    <div id="cards"></div>
+  </div>
+
+  <div id="branch-view" class="hidden">
+    <div id="branch-topbar">
+      <span id="branch-title"></span>
+      <div id="zoom-controls">
+        <button id="zoom-out">-</button>
+        <input id="zoom-input" type="number" min="10" max="150" value="50" />
+        <span>%</span>
+        <button id="zoom-in">+</button>
+      </div>
+    </div>
+    <div id="strip"></div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
