@@ -79,6 +79,27 @@ STATE = MapState()
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
+        STATIC_MIME = {
+        ".css": "text/css; charset=utf-8",
+        ".js": "application/javascript; charset=utf-8",
+        ".svg": "image/svg+xml",
+        ".woff2": "font/woff2",
+        ".ico": "image/x-icon",
+    }
+
+    def _serve_file_from(self, base_dir, rel):
+        path = (base_dir / rel).resolve()
+        # evita salir de la carpeta con ../
+        if base_dir.resolve() not in path.parents or not path.is_file():
+            self.send_error(404)
+            return
+        data = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type",
+            self.STATIC_MIME.get(path.suffix.lower(), "application/octet-stream"))
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
 
     def log_message(self, fmt, *args):
         # No llenar la consola con logs de cada pedido.
@@ -134,6 +155,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def _serve_static(self, filename, content_type):
 
         path = WEB_DIR / filename
+
+        # Archivos estáticos (css, js, etc.)
+        if route.startswith("/static/"):
+            return self._serve_file_from(WEB_DIR / "static", route[len("/static/"):])
 
         if not path.exists():
             self.send_error(
