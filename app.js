@@ -1411,10 +1411,19 @@ async function initialize() {
 
 
 // =========================================================
-// DOM READY
+// INICIO DE LA APLICACIÓN
 // =========================================================
 
+/*
+ * pywebview expone window.pywebview.api
+ * después de que la ventana termina de inicializarse.
+ *
+ * No debemos ejecutar initialize() solamente con
+ * DOMContentLoaded porque en ese momento la API de
+ * Python todavía puede no existir.
+ */
+
 window.addEventListener(
-    "DOMContentLoaded",
+    "pywebviewready",
     initialize
 );
