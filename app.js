@@ -5,46 +5,35 @@
 
 
 // =========================================================
-// ESTADO GLOBAL
-// =========================================================
-
-const state = {
-
-    // Manifest del .imgmap actualmente abierto
-    manifest: null,
-
-    // Ruta del .imgmap actualmente abierto
-    path: null,
-
-    // Rama actualmente abierta
-    branchIndex: null,
-
-    // Zoom GLOBAL de VECTOR (no pertenece a una rama ni a un archivo)
-    zoom: 40,
-
-    // Información del último archivo
-    lastFile: null,
-
-    // Biblioteca
-    library: [],
-
-    // Velocidad de desplazamiento con las flechas arriba/abajo (px por segundo)
-    scrollSpeed: 1300,
-    scrollSpeedDefault: 1300
-};
-
-
-// =========================================================
 // CONFIGURACIÓN DEL ZOOM
 // =========================================================
 
 const ZOOM_MIN = 10;
 const ZOOM_MAX = 150;
 const ZOOM_STEP = 5;
-const ZOOM_DEFAULT = 40;
+const ZOOM_DEFAULT = 30;
 
 const SPEED_MIN = 100;
 const SPEED_MAX = 5000;
+
+
+// =========================================================
+// ESTADO GLOBAL
+// =========================================================
+
+const state = {
+    manifest: null,
+    path: null,
+    branchIndex: null,
+
+    // Zoom actual (se carga al abrir: el del archivo, el del programa o ZOOM_DEFAULT)
+    zoom: ZOOM_DEFAULT,
+
+    lastFile: null,
+    library: [],
+    scrollSpeed: 1300,
+    scrollSpeedDefault: 1300
+};
 
 
 // =========================================================

@@ -284,7 +284,7 @@ body {
 
     display: grid;
 
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
 
     align-content: start;
 
@@ -358,12 +358,11 @@ body {
     color: #fff;
 
     font-size: clamp(13px, 1.8vh, 21px);
+    line-height: 1.25;
 
-    white-space: nowrap;
-
-    overflow: hidden;
-
-    text-overflow: ellipsis;
+    /* Nombre completo: baja de línea en vez de cortarse con "..." */
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 
@@ -544,12 +543,11 @@ body {
     color: #fff;
 
     font-size: clamp(16px, 2vh, 25px);
+    line-height: 1.25;
 
-    white-space: nowrap;
-
-    overflow: hidden;
-
-    text-overflow: ellipsis;
+    /* Nombre completo: baja de línea en vez de cortarse con "..." */
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 
@@ -562,9 +560,6 @@ body {
 
     overflow: hidden;
 }
-
-
-
 
 
 .zoom-controls {
@@ -699,7 +694,7 @@ body {
     }
 
     .library-list {
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
     }
 
     .zoom-button {

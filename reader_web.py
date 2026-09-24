@@ -10,9 +10,8 @@ Python funciona como servidor HTTP local y entrega:
   - imagenes contenidas dentro del .imgmap
 
 Los archivos web se buscan (en este orden) en:
-  1. static/
-  2. templates/
-  3. la carpeta de este script
+  1. templates/
+  2. la carpeta de este script
 
 Uso:
     python reader_web.py
@@ -45,9 +44,8 @@ except ImportError:
 
 # Carpetas donde se buscan los archivos web.
 WEB_DIR = Path(__file__).resolve().parent
-STATIC_DIR = WEB_DIR / "static"
 TEMPLATES_DIR = WEB_DIR / "templates"
-SEARCH_DIRS = [STATIC_DIR, TEMPLATES_DIR, WEB_DIR]
+SEARCH_DIRS = [TEMPLATES_DIR, WEB_DIR]
 
 ERROR_LOG = Path.home() / "imgmap_reader_web_error.log"
 
@@ -85,13 +83,6 @@ STATIC_MIME = {
 }
 
 
-# El HTML usa sintaxis de Flask: {{ url_for('static', filename='app.css') }}
-# Este servidor no es Flask, asi que se traduce a /static/app.css al entregarlo.
-URL_FOR_STATIC = re.compile(
-    r"\{\{\s*url_for\(\s*['\"]static['\"]\s*,\s*filename\s*=\s*['\"]([^'\"]+)['\"]\s*\)\s*\}\}"
-)
-
-
 def find_web_file(rel):
     """
     Busca un archivo estatico en SEARCH_DIRS.
@@ -99,8 +90,6 @@ def find_web_file(rel):
     que no esten en STATIC_MIME.
     """
     rel = rel.lstrip("/\\")
-    if rel.startswith("static/"):
-        rel = rel[len("static/"):]
     if not rel:
         return None
 
@@ -233,7 +222,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if route.startswith("/library-cover/"):
                 return self._serve_library_cover(route[len("/library-cover/"):])
 
-            # Cualquier otro archivo estatico: /app.js, /static/style.css,
+            # Cualquier otro archivo estatico: /app.js,
             # /style.css, fuentes, etc.
             return self._serve_static(route)
 
@@ -252,12 +241,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
 
         data = path.read_bytes()
-
-        # Si es HTML, reemplazar los url_for('static', ...) de Flask.
-        if path.suffix.lower() == ".html":
-            text = data.decode("utf-8")
-            text = URL_FOR_STATIC.sub(r"/static/\1", text)
-            data = text.encode("utf-8")
 
         content_type = STATIC_MIME.get(
             path.suffix.lower(), "application/octet-stream"

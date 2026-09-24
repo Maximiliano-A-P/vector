@@ -10,7 +10,6 @@ Para las imágenes dentro de cada rama, el orden se determina buscando el
 como "1.jpg", "pagina_07.png" o "49 (12).jpg".
 """
 import json
-import re
 import zipfile
 from pathlib import Path
 
