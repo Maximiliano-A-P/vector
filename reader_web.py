@@ -19,7 +19,6 @@ o:
     python reader_web.py "archivo.imgmap"
 """
 
-import re
 import sys
 import hashlib
 import functools
@@ -43,7 +42,11 @@ except ImportError:
     settings = None
 
 # Carpetas donde se buscan los archivos web.
-WEB_DIR = Path(__file__).resolve().parent
+if getattr(sys, "frozen", False):
+    WEB_DIR = Path(sys._MEIPASS)          # dentro del VECTOR.exe empaquetado
+else:
+    WEB_DIR = Path(__file__).resolve().parent
+
 TEMPLATES_DIR = WEB_DIR / "templates"
 SEARCH_DIRS = [TEMPLATES_DIR, WEB_DIR]
 
@@ -589,8 +592,56 @@ def start_server():
 
     return port
 
+def is_registered():
+    """True si .imgmap ya apunta a ESTE VECTOR.exe."""
+    import winreg
+    try:
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Classes\VECTOR.imgmap\shell\open\command",
+        ) as key:
+            return winreg.QueryValueEx(key, "")[0] == f'"{sys.executable}" "%1"'
+    except OSError:
+        return False
+
+
+def register_file_type():
+    """Registra .imgmap para el usuario actual (sin permisos de administrador)."""
+    import winreg, ctypes
+
+    if not getattr(sys, "frozen", False):
+        print("Ejecutalo desde el VECTOR.exe empaquetado.")
+        return
+
+    exe = sys.executable
+    entries = [
+        (r"Software\Classes\.imgmap", "VECTOR.imgmap"),
+        (r"Software\Classes\.imgmap\ShellEx\{E357FCCD-A995-4576-B01F-234630154E96}",
+         "{C7657C4A-9F68-40FA-A4DF-96BC08EB3551}"),
+        (r"Software\Classes\VECTOR.imgmap", "Mapa de imagenes VECTOR"),
+        (r"Software\Classes\VECTOR.imgmap\DefaultIcon", f'"{exe}",0'),
+        (r"Software\Classes\VECTOR.imgmap\shell\open\command", f'"{exe}" "%1"'),
+    ]
+    for path, value in entries:
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, path) as key:
+            winreg.SetValueEx(key, "", 0, winreg.REG_SZ, value)
+
+    # Avisar al Explorador que cambiaron las asociaciones
+    ctypes.windll.shell32.SHChangeNotify(0x08000000, 0, None, None)
 
 def main():
+    if "--register" in sys.argv:
+        register_file_type()
+        return
+
+    # Primera ejecución del .exe (o si se movió de carpeta): registrar .imgmap.
+    if getattr(sys, "frozen", False) and sys.platform == "win32":
+        try:
+            if not is_registered():
+                register_file_type()
+        except Exception:
+            ERROR_LOG.write_text(traceback.format_exc(), encoding="utf-8")
+
     # Si se paso un archivo .imgmap como argumento,
     # se abre automaticamente.
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
