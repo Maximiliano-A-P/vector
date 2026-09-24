@@ -6,7 +6,6 @@
     box-sizing: border-box;
 }
 
-
 html,
 body {
     width: 100%;
@@ -15,15 +14,11 @@ body {
     padding: 0;
 }
 
-
 body {
     background: #111;
     color: #fff;
 
-    font-family:
-        Arial,
-        Helvetica,
-        sans-serif;
+    font-family: Arial, Helvetica, sans-serif;
 
     overflow: hidden;
 }
@@ -52,7 +47,6 @@ body {
     overflow: hidden;
 }
 
-
 .main-header {
     width: 100%;
 
@@ -64,7 +58,6 @@ body {
 
     flex: 0 0 auto;
 }
-
 
 .main-header h1 {
     margin: 0;
@@ -92,9 +85,9 @@ body {
     gap: 1vw;
 }
 
-
 .main-action {
-    width: 50%;
+    flex: 1 1 0;
+    min-width: 0;
     height: 100%;
 
     border: 2px solid #555;
@@ -119,21 +112,82 @@ body {
         transform 0.1s ease;
 }
 
-
 .main-action:hover {
     background: #292929;
     border-color: #888;
 }
 
-
 .main-action:active {
     transform: scale(0.99);
 }
 
-
 .main-action:disabled {
     opacity: 0.45;
     cursor: default;
+}
+
+/* Apartado de velocidad de desplazamiento (tercer bloque del nivel 1) */
+
+.speed-panel {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 100%;
+
+    border: 2px solid #555;
+    border-radius: 12px;
+
+    background: #1d1d1d;
+    color: #fff;
+
+    display: flex;
+    flex-direction: column;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 1.2vh;
+
+    padding: 1vh 1vw;
+}
+
+#speed-input {
+    width: 60%;
+    max-width: 220px;
+    height: clamp(34px, 5vh, 52px);
+
+    border: 1px solid #666;
+    border-radius: 8px;
+
+    background: #181818;
+    color: #fff;
+
+    text-align: center;
+
+    font-size: clamp(16px, 2.4vh, 26px);
+}
+
+.speed-buttons {
+    width: 100%;
+
+    display: flex;
+    justify-content: center;
+
+    gap: 0.8vw;
+}
+
+.speed-buttons .secondary-button:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.speed-hint {
+    max-width: 90%;
+
+    text-align: center;
+
+    color: #999;
+
+    font-size: clamp(11px, 1.5vh, 16px);
 }
 
 
@@ -143,7 +197,6 @@ body {
 
     letter-spacing: 0.04em;
 }
-
 
 .action-subtitle {
     max-width: 80%;
@@ -171,7 +224,6 @@ body {
     padding: 1vh 1vw 2vh;
 }
 
-
 .section-header {
     width: 100%;
 
@@ -184,13 +236,11 @@ body {
     padding: 1vh 0.5vw;
 }
 
-
 .section-header h2 {
     margin: 0;
 
     font-size: clamp(22px, 3vh, 40px);
 }
-
 
 .library-location {
     display: block;
@@ -201,7 +251,6 @@ body {
 
     font-size: clamp(12px, 1.7vh, 20px);
 }
-
 
 .secondary-button {
     padding: 1vh 1.2vw;
@@ -217,18 +266,11 @@ body {
     font-size: clamp(13px, 1.8vh, 20px);
 }
 
-
 .secondary-button:hover {
     background: #333;
 }
 
-
-/*
-   Esta es la zona que tiene scroll.
-
-   La pantalla principal NO hace scroll.
-   Solamente la biblioteca.
-*/
+/* Esta es la zona que tiene scroll (la pantalla principal NO hace scroll). */
 
 .library-list {
     min-height: 0;
@@ -242,11 +284,7 @@ body {
 
     display: grid;
 
-    grid-template-columns:
-        repeat(
-            auto-fill,
-            minmax(150px, 1fr)
-        );
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 
     align-content: start;
 
@@ -276,7 +314,6 @@ body {
         transform 0.1s ease;
 }
 
-
 .library-card:hover {
     background: #252525;
     border-color: #888;
@@ -284,11 +321,9 @@ body {
     transform: translateY(-2px);
 }
 
-
 .library-card:active {
     transform: translateY(0);
 }
-
 
 .library-card-image-container {
     width: 100%;
@@ -304,7 +339,6 @@ body {
     overflow: hidden;
 }
 
-
 .library-card-image {
     width: 100%;
     height: 100%;
@@ -313,7 +347,6 @@ body {
 
     display: block;
 }
-
 
 .library-card-name {
     width: 100%;
@@ -359,7 +392,6 @@ body {
     border-radius: 10px;
 }
 
-
 .library-empty p {
     margin: 0.5vh;
 }
@@ -376,12 +408,10 @@ body {
     overflow: hidden;
 }
 
-
 #root-view {
     overflow-y: auto;
     overflow-x: hidden;
 }
-
 
 .map-header {
     width: 100%;
@@ -392,7 +422,6 @@ body {
 
     background: #111;
 }
-
 
 .map-header h1 {
     margin: 0;
@@ -412,15 +441,10 @@ body {
 
     display: grid;
 
-    grid-template-columns:
-        repeat(
-            auto-fill,
-            minmax(220px, 1fr)
-        );
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 
     gap: 2vw;
 }
-
 
 .card {
     width: 100%;
@@ -440,7 +464,6 @@ body {
         transform 0.1s ease;
 }
 
-
 .card:hover {
     background: #242424;
     border-color: #888;
@@ -448,11 +471,9 @@ body {
     transform: translateY(-2px);
 }
 
-
 .card:active {
     transform: translateY(0);
 }
-
 
 .card img {
     width: 100%;
@@ -465,7 +486,6 @@ body {
 
     background: #090909;
 }
-
 
 .card-name {
     padding: 1.2vh 1vw;
@@ -494,7 +514,6 @@ body {
     overflow: hidden;
 }
 
-
 #branch-topbar {
     position: fixed;
 
@@ -503,7 +522,7 @@ body {
 
     z-index: 1000;
 
-    width: 100%;
+    width: 100vw;
 
     min-height: 6vh;
 
@@ -519,13 +538,11 @@ body {
     border-bottom: 1px solid #333;
 }
 
-
 .branch-title {
     font-size: clamp(18px, 2.5vh, 32px);
 
     font-weight: 700;
 }
-
 
 .zoom-controls {
     display: flex;
@@ -534,7 +551,6 @@ body {
 
     gap: 0.4vw;
 }
-
 
 .zoom-button {
     width: 42px;
@@ -551,11 +567,9 @@ body {
     font-size: 25px;
 }
 
-
 .zoom-button:hover {
     background: #333;
 }
-
 
 #zoom-input {
     width: 65px;
@@ -572,7 +586,6 @@ body {
     font-size: 17px;
 }
 
-
 .zoom-symbol {
     font-size: 18px;
 }
@@ -587,13 +600,15 @@ body {
     height: 100vh;
 
     overflow-y: auto;
-    overflow-x: hidden;
+
+    /* Con zoom mayor al ancho disponible aparece scroll horizontal
+       en vez de cortar las imagenes. */
+    overflow-x: auto;
 
     padding-top: 7vh;
 
     --zoom-vw: 40vw;
 }
-
 
 .image-strip img {
     display: block;
@@ -604,19 +619,15 @@ body {
 
     max-width: none;
 
-    margin: 0;
+    /* CENTRADO: margen automatico a izquierda y derecha */
+    margin: 0 auto;
     padding: 0;
 
     border: 0;
 }
 
-
-/*
-   No hay margen entre imágenes.
-
-   La altura se calcula automáticamente
-   conservando la relación de aspecto.
-*/
+/* No hay margen vertical entre imagenes: la altura se calcula sola
+   conservando la relacion de aspecto. */
 
 
 /* =========================================================
@@ -625,20 +636,18 @@ body {
 
 ::-webkit-scrollbar {
     width: 12px;
+    height: 12px;
 }
-
 
 ::-webkit-scrollbar-track {
     background: #111;
 }
-
 
 ::-webkit-scrollbar-thumb {
     background: #444;
 
     border-radius: 6px;
 }
-
 
 ::-webkit-scrollbar-thumb:hover {
     background: #666;
@@ -654,45 +663,32 @@ body {
     #main-actions {
         flex-direction: column;
 
-        flex-basis: 35vh;
+        flex-basis: 60vh;
     }
 
-
-    .main-action {
+    .main-action,
+    .speed-panel {
         width: 100%;
     }
 
-
     .branch-grid {
-        grid-template-columns:
-            repeat(
-                auto-fill,
-                minmax(150px, 1fr)
-            );
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 
         gap: 3vw;
     }
 
-
     .library-list {
-        grid-template-columns:
-            repeat(
-                auto-fill,
-                minmax(120px, 1fr)
-            );
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     }
-
 
     #branch-topbar {
         min-height: 8vh;
     }
 
-
     .zoom-button {
         width: 36px;
         height: 36px;
     }
-
 
     #zoom-input {
         width: 55px;

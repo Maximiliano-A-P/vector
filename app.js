@@ -29,8 +29,8 @@ const state = {
     library: [],
 
     // Velocidad de desplazamiento con las flechas arriba/abajo (px por segundo)
-    scrollSpeed: 1200,
-    scrollSpeedDefault: 1200
+    scrollSpeed: 1300,
+    scrollSpeedDefault: 1300
 };
 
 

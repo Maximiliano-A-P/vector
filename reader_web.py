@@ -142,7 +142,7 @@ def is_allowed_library_file(path):
 # ---------------- VELOCIDAD DE DESPLAZAMIENTO (flechas arriba / abajo) ----------------
 # Unidad: pixeles por segundo mientras se mantiene apretada la flecha.
 
-DEFAULT_SCROLL_SPEED = 1200
+DEFAULT_SCROLL_SPEED = 1300
 MIN_SCROLL_SPEED = 100
 MAX_SCROLL_SPEED = 5000
 
