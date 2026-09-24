@@ -166,27 +166,28 @@ function imgUrl(arcname) {
 // ZOOM GLOBAL
 // =========================================================
 
-function applyZoom(value) {
+let zoomSaveTimer = null;
 
+function saveZoom() {
+    if (!apiExists("set_zoom")) return;
+    clearTimeout(zoomSaveTimer);
+    zoomSaveTimer = setTimeout(() => {
+        window.pywebview.api.set_zoom(state.path, state.zoom).catch(console.error);
+    }, 300);
+}
+
+function applyZoom(value, save = true) {
     value = Number(value);
+    if (!Number.isFinite(value)) value = ZOOM_DEFAULT;
 
-    if (!Number.isFinite(value)) {
-
-        value = ZOOM_DEFAULT;
-    }
-
-    value = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, value));
-
-    // Ajustamos al múltiplo de 5 más cercano
-    value = Math.round(value / ZOOM_STEP) * ZOOM_STEP;
-
+    value = Math.round(value);                       // cualquier entero
     value = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, value));
 
     state.zoom = value;
-
     zoomInput.value = value;
-
     stripEl.style.setProperty("--zoom-vw", value + "vw");
+
+    if (save) saveZoom();
 }
 
 
@@ -384,7 +385,16 @@ async function openFromPath(path) {
 
     state.manifest = manifest;
 
-    applyZoom(state.zoom);
+    let zoom = state.zoom;
+    if (apiExists("get_zoom")) {
+        try {
+            const saved = await window.pywebview.api.get_zoom(path);
+            if (Number.isFinite(saved)) zoom = saved;
+        } catch (error) {
+            console.error("Error leyendo el zoom:", error);
+        }
+    }
+    applyZoom(zoom, false);
 
     renderRoot();
 
@@ -977,6 +987,22 @@ document.getElementById("zoom-out")
 
 zoomInput.addEventListener("change", () => applyZoom(zoomInput.value));
 
+zoomInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+        event.preventDefault();
+        applyZoom(zoomInput.value);
+        zoomInput.blur();
+    }
+});
+
+const branchPanel = document.getElementById("branch-panel");
+const panelToggle = document.getElementById("panel-toggle");
+
+panelToggle.addEventListener("click", () => {
+    const collapsed = branchPanel.classList.toggle("collapsed");
+    panelToggle.setAttribute("aria-expanded", String(!collapsed));
+    panelToggle.blur();   // para que las flechas sigan funcionando
+});
 
 // =========================================================
 // TECLADO
@@ -1097,7 +1123,14 @@ window.addEventListener("blur", stopKeyScroll);
 
 async function initialize() {
 
-    applyZoom(ZOOM_DEFAULT);
+    let startZoom = ZOOM_DEFAULT;
+    if (apiExists("get_zoom")) {
+        try {
+            const saved = await window.pywebview.api.get_zoom(null);
+            if (Number.isFinite(saved)) startZoom = saved;
+        } catch (e) { console.error(e); }
+    }
+    applyZoom(startZoom, false);
 
     showHome();
 

@@ -130,25 +130,22 @@
 
     <main id="branch-view" class="view hidden">
 
-        <header id="branch-topbar">
+        <aside id="branch-panel" class="branch-panel">
 
-            <div class="branch-header-left">
+            <button id="panel-toggle" class="panel-toggle" type="button"
+                    aria-expanded="true" aria-label="Plegar o desplegar panel">
                 <span id="branch-title" class="branch-title"></span>
-            </div>
+                <span class="panel-chevron">▾</span>
+            </button>
 
             <div id="zoom-controls" class="zoom-controls">
-
                 <button id="zoom-out" class="zoom-button" type="button" aria-label="Alejar">−</button>
-
-                <input id="zoom-input" type="number" min="10" max="150" step="5" value="40" aria-label="Zoom">
-
+                <input id="zoom-input" type="number" min="10" max="150" step="1" value="40" aria-label="Zoom">
                 <span class="zoom-symbol">%</span>
-
                 <button id="zoom-in" class="zoom-button" type="button" aria-label="Acercar">+</button>
-
             </div>
 
-        </header>
+        </aside>
 
         <section id="strip" class="image-strip"></section>
 
