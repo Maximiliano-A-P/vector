@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+import os
 
 
 APP_NAME = "VECTOR"
@@ -119,3 +120,64 @@ def set_library_path(path):
         )
 
     save_settings(settings)
+
+# ---------------- ZOOM ----------------
+# "zoom"       -> ultimo zoom usado en el programa
+# "file_zooms" -> zoom recordado por cada archivo (clave: ruta normalizada)
+
+ZOOM_MIN = 10
+ZOOM_MAX = 150
+
+
+def _zoom_key(path):
+    # normcase: en Windows ignora mayusculas y unifica / y \
+    return os.path.normcase(str(Path(path).resolve()))
+
+
+def _clamp_zoom(value):
+    return max(ZOOM_MIN, min(ZOOM_MAX, int(round(float(value)))))
+
+
+def get_zoom(path=None):
+    """
+    Zoom del archivo si tiene uno guardado; si no, el ultimo zoom del
+    programa; si tampoco hay, None.
+    """
+    data = load_settings()
+
+    if path:
+        file_zooms = data.get("file_zooms")
+        if isinstance(file_zooms, dict):
+            value = file_zooms.get(_zoom_key(path))
+            if value is not None:
+                try:
+                    return _clamp_zoom(value)
+                except (TypeError, ValueError):
+                    pass
+
+    value = data.get("zoom")
+    if value is None:
+        return None
+
+    try:
+        return _clamp_zoom(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def set_zoom(path, value):
+    """Guarda el zoom como ultimo del programa y, si hay path, tambien del archivo."""
+    value = _clamp_zoom(value)
+
+    data = load_settings()
+    data["zoom"] = value
+
+    if path:
+        file_zooms = data.get("file_zooms")
+        if not isinstance(file_zooms, dict):
+            file_zooms = {}
+        file_zooms[_zoom_key(path)] = value
+        data["file_zooms"] = file_zooms
+
+    save_settings(data)
+    return value

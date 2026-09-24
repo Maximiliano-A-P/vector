@@ -505,6 +505,27 @@ class Api:
         save_scroll_speed(DEFAULT_SCROLL_SPEED)
         return self._speed_info()
 
+    # ---------------- ZOOM ----------------
+
+    @logged
+    def get_zoom(self, path=None):
+        """Zoom del archivo, o el ultimo del programa, o None."""
+        if settings is None:
+            return None
+        try:
+            return settings.get_zoom(path)
+        except Exception:
+            return None
+
+    @logged
+    def set_zoom(self, path, value):
+        if settings is None:
+            return None
+        try:
+            return settings.set_zoom(path, value)
+        except Exception:
+            return None
+
     # ---------------- CONTINUAR ----------------
 
     @logged
