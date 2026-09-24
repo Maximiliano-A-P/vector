@@ -434,6 +434,55 @@ body {
    RAMAS
    ========================================================= */
 
+.branch-panel {
+    position: fixed;          /* fuera del flujo: no mueve nada */
+    top: 16px;
+    left: 16px;
+    z-index: 1000;
+
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    min-width: 200px;
+    max-width: 280px;
+
+    padding: 10px 12px;
+
+    background: rgba(15, 15, 15, 0.94);
+    border: 1px solid #333;
+    border-radius: 10px;
+}
+
+.panel-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.branch-title {
+    font-size: clamp(18px, 2.5vh, 32px);
+    font-weight: 700;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.panel-chevron { transition: transform 0.15s ease; }
+
+.branch-panel.collapsed .panel-chevron { transform: rotate(-90deg); }
+.branch-panel.collapsed .zoom-controls { display: none; }
+
 .branch-grid {
     width: 100%;
 
@@ -514,35 +563,9 @@ body {
     overflow: hidden;
 }
 
-#branch-topbar {
-    position: fixed;
 
-    top: 0;
-    left: 0;
 
-    z-index: 1000;
 
-    width: 100vw;
-
-    min-height: 6vh;
-
-    padding: 1vh 1vw;
-
-    display: flex;
-
-    align-items: center;
-    justify-content: space-between;
-
-    background: rgba(15, 15, 15, 0.94);
-
-    border-bottom: 1px solid #333;
-}
-
-.branch-title {
-    font-size: clamp(18px, 2.5vh, 32px);
-
-    font-weight: 700;
-}
 
 .zoom-controls {
     display: flex;
@@ -604,8 +627,6 @@ body {
     /* Con zoom mayor al ancho disponible aparece scroll horizontal
        en vez de cortar las imagenes. */
     overflow-x: auto;
-
-    padding-top: 7vh;
 
     --zoom-vw: 40vw;
 }
@@ -679,10 +700,6 @@ body {
 
     .library-list {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    }
-
-    #branch-topbar {
-        min-height: 8vh;
     }
 
     .zoom-button {
