@@ -170,9 +170,13 @@ let zoomSaveTimer = null;
 
 function saveZoom() {
     if (!apiExists("set_zoom")) return;
+
+    const path = state.path;
+    const value = state.zoom;
+
     clearTimeout(zoomSaveTimer);
     zoomSaveTimer = setTimeout(() => {
-        window.pywebview.api.set_zoom(state.path, state.zoom).catch(console.error);
+        window.pywebview.api.set_zoom(path, value).catch(console.error);
     }, 300);
 }
 
@@ -308,7 +312,7 @@ function openBranch(index) {
     });
 
     // El zoom GLOBAL se conserva al cambiar de rama.
-    applyZoom(state.zoom);
+    applyZoom(state.zoom, false);
 
     showBranch();
 
